@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="meta.title">融合智慧算网中枢</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link rel="stylesheet" href="shared.css?v=contrast">
+    <script src="i18n/runtime.js"></script>
+    <script src="i18n/zh.js"></script>
+    <script src="i18n/en.js"></script>
+    <script>PagesI18n.activate('power-station');</script>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // ==============================
+        // SVG 图标库
+        // ==============================
+        const Icon = ({ path, className, ...props }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>
+                {path}
+            </svg>
+        );
+        const Globe = (p) => <Icon {...p} path={<><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></>} />;
+        const Clock = (p) => <Icon {...p} path={<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>} />;
+        const Cpu = (p) => <Icon {...p} path={<><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 21v3M15 21v3M20 9h3M20 14h3M1 9h3M1 14h3"/></>} />;
+        const Server = (p) => <Icon {...p} path={<><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></>} />;
+        const Layers = (p) => <Icon {...p} path={<><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></>} />;
+        const Database = (p) => <Icon {...p} path={<><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></>} />;
+        const Hexagon = (p) => <Icon {...p} path={<><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></>} />;
+        const ZapIcon = (p) => <Icon {...p} path={<><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></>} />;
+        const Navigation = (p) => <Icon {...p} path={<><polygon points="3 11 22 2 13 21 11 13 3 11"/></>} />;
+
+        // 与 tokenseller.html 完全统一：name 为对外展示名，city 为图表短标签（须与 name 一致，不得出现未对外使用的地名）
+        const STATION_CATALOG = [
+            // x/y：集群拓扑图（西=左、北=上）；geoX/geoY：全国算力地图。坐标按大致地理方位等比铺开
+            { id: 'xj-pv', city: '新疆', name: '新疆集中式光伏电站', type: 'centralized-pv', typeLabel: '集中式光伏', x: 10, y: 26, geoX: 10, geoY: 28, power: 142.3, today: 528.6, cap: 220, status: 'normal', subCount: 8 },
+            { id: 'bj-dx', city: '北京大兴', name: '北京大兴区分布式光伏电站', type: 'distributed-pv', typeLabel: '分布式光伏', x: 58, y: 20, geoX: 48, geoY: 18, power: 85.2, today: 312.5, cap: 120, status: 'normal', subCount: 4 },
+            { id: 'tj-pv', city: '天津', name: '天津分布式光伏电站', type: 'distributed-pv', typeLabel: '分布式光伏', x: 72, y: 18, geoX: 58, geoY: 22, power: 62.7, today: 248.0, cap: 90, status: 'normal', subCount: 3 },
+            { id: 'hb-sz', city: '河北深州', name: '河北深州集中式光伏电站', type: 'centralized-pv', typeLabel: '集中式光伏', x: 52, y: 42, geoX: 42, geoY: 38, power: 91.5, today: 356.2, cap: 130, status: 'warning', subCount: 6 },
+            { id: 'js-gy', city: '江苏高邮', name: '江苏高邮集中式光伏电站', type: 'centralized-pv', typeLabel: '集中式光伏', x: 82, y: 48, geoX: 72, geoY: 48, power: 54.1, today: 201.3, cap: 80, status: 'normal', subCount: 4 },
+            { id: 'jx-wa', city: '江西', name: '江西水电电站', type: 'hydro', typeLabel: '水电', x: 58, y: 65, geoX: 48, geoY: 68, power: 103.8, today: 402.1, cap: 150, status: 'normal', subCount: 5 },
+            { id: 'gd-st', city: '广东汕头', name: '广东汕头海上风电电站', type: 'offshore-wind', typeLabel: '海上风电', x: 78, y: 88, geoX: 68, geoY: 82, power: 67.2, today: 261.5, cap: 95, status: 'normal', subCount: 3 },
+        ];
+
+        const STATION_TYPE_STYLE = {
+            'distributed-pv': { dot: 'bg-cyan-400', shadow: 'shadow-[0_0_15px_#22d3ee]', border: 'border-cyan-500/50', statusKey: 'status.stable' },
+            'centralized-pv': { dot: 'bg-blue-400', shadow: 'shadow-[0_0_15px_#60a5fa]', border: 'border-blue-500/50', statusKey: 'status.computing' },
+            'hydro': { dot: 'bg-emerald-400', shadow: 'shadow-[0_0_15px_#34d399]', border: 'border-emerald-500/50', statusKey: 'status.green' },
+            'wind': { dot: 'bg-amber-400', shadow: 'shadow-[0_0_15px_#fbbf24]', border: 'border-amber-500/50', statusKey: 'status.green' },
+            'offshore-wind': { dot: 'bg-amber-400', shadow: 'shadow-[0_0_15px_#fbbf24]', border: 'border-amber-500/50', statusKey: 'status.green' },
+        };
+
+        const SOURCE_TITLE_KEYS = {
+            'distributed-pv': 'source.distributed-pv',
+            'centralized-pv': 'source.centralized-pv',
+            'wind': 'source.wind',
+            'offshore-wind': 'source.offshore-wind',
+            'hydro': 'source.hydro',
+        };
+
+        function tt(key, vars) {
+            return (typeof t === 'function') ? t(key, vars) : key;
+        }
+        function localizeStation(st) {
+            if (!st) return st;
+            return Object.assign({}, st, {
+                name: tt('station.' + st.id + '.name'),
+                city: tt('station.' + st.id + '.city'),
+                typeLabel: tt('type.' + st.type),
+            });
+        }
+        function stationTypeStyle(type) {
+            const base = STATION_TYPE_STYLE[type] || STATION_TYPE_STYLE['distributed-pv'];
+            return Object.assign({}, base, { status: tt(base.statusKey) });
+        }
+        function sourceTitleFor(type) {
+            return tt(SOURCE_TITLE_KEYS[type] || SOURCE_TITLE_KEYS['distributed-pv']);
+        }
+
+        // ==============================
+        // 工具与自定义 Hook
+        // ==============================
+        const useDynamicData = (initialData, variance = 5, interval = 3000) => {
+            const [data, setData] = useState(initialData);
+            useEffect(() => {
+                const timer = setInterval(() => {
+                    setData(prev => prev.map(val => Math.max(0, val + (Math.random() * variance * 2 - variance))));
+                }, interval);
+                return () => clearInterval(timer);
+            }, [variance, interval]);
+            return data;
+        };
+
+        // ==============================
+        // 共享 UI 组件
+        // ==============================
+        const AnimatedNumber = ({ value, isFloat, compact = false }) => {
+            const [displayValue, setDisplayValue] = useState(value);
+
+            useEffect(() => {
+                let startValue = displayValue;
+                let endValue = value;
+                if (startValue === endValue) return;
+                
+                let startTime = null;
+                const duration = 1000;
+                let animationFrameId;
+
+                const animate = (currentTime) => {
+                    if (!startTime) startTime = currentTime;
+                    const progress = Math.min((currentTime - startTime) / duration, 1);
+                    const easeOut = 1 - Math.pow(1 - progress, 4);
+                    setDisplayValue(startValue + (endValue - startValue) * easeOut);
+                    
+                    if (progress < 1) animationFrameId = requestAnimationFrame(animate);
+                    else setDisplayValue(endValue);
+                };
+                
+                animationFrameId = requestAnimationFrame(animate);
+                return () => cancelAnimationFrame(animationFrameId);
+            }, [value]);
+
+            let formattedValue;
+            if (compact) {
+                if (displayValue >= 1000000) formattedValue = (displayValue / 1000000).toFixed(1) + 'M';
+                else if (displayValue >= 1000) formattedValue = (displayValue / 1000).toFixed(1) + 'K';
+                else formattedValue = Math.floor(displayValue).toString();
+            } else {
+                formattedValue = isFloat ? displayValue.toFixed(1) : Math.floor(displayValue).toLocaleString();
+            }
+
+            return <>{formattedValue}</>;
+        };
+
+        const TechCard = ({ title, children, className = "" }) => (
+            <div className={`relative bg-[#060d1f]/80 border border-blue-500/30 backdrop-blur-sm flex flex-col ${className}`}>
+                <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-blue-400"></div>
+                <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-blue-400"></div>
+                <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-blue-400"></div>
+                <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-blue-400"></div>
+                
+                {title && (
+                <div className="px-4 py-2 bg-gradient-to-r from-blue-900/50 to-transparent border-b border-blue-500/30 flex items-center gap-2">
+                    <div className="w-1.5 h-4 bg-cyan-400 rounded-sm skew-x-[-20deg]"></div>
+                    <h3 className="text-cyan-100 text-sm font-bold tracking-wider">{title}</h3>
+                </div>
+                )}
+                <div className="p-3 flex-1 flex flex-col overflow-hidden relative">
+                {children}
+                </div>
+            </div>
+        );
+
+        const MiniLineChart = ({ data1, data2, color1 = "#0ea5e9", color2 = "#10b981", xLabels = ['00:00', '12:00', '24:00'], dualAxis = false, yMax1, yMax2 }) => {
+            const [hoverIndex, setHoverIndex] = useState(null);
+            const m1 = yMax1 || (Math.max(...data1) * 1.2 || 100);
+            const m2 = dualAxis ? (yMax2 || (Math.max(...(data2 || [])) * 1.2 || 100)) : m1;
+            const maxForData2 = data2 ? (dualAxis ? m2 : m1) : m1;
+
+            const toPoints = (data, m) => data.map((val, i) => `${(i / (data.length - 1)) * 100},${100 - (val / m) * 100}`).join(' L ');
+            
+            return (
+                <div className="relative w-full h-full min-h-[80px] flex" onMouseLeave={() => setHoverIndex(null)}>
+                    {/* 左侧Y轴 (Data1) */}
+                    <div className="flex flex-col justify-between items-end text-[9px] pr-2 pb-5 shrink-0 w-8 z-10 font-mono" style={{ color: color1 }}>
+                        <span>{Math.floor(m1)}</span>
+                        <span>{Math.floor(m1 / 2)}</span>
+                        <span>0</span>
+                    </div>
+
+                    <div className="relative flex-1 h-full">
+                        <div className="absolute inset-0 pb-5 flex flex-col justify-between pointer-events-none z-0">
+                            <div className="w-full border-t border-dashed border-blue-900/40"></div>
+                            <div className="w-full border-t border-dashed border-blue-900/40"></div>
+                            <div className="w-full border-t border-dashed border-blue-900/40"></div>
+                        </div>
+
+                        <svg className="absolute top-0 left-0 w-full h-[calc(100%-1.25rem)] drop-shadow-md pointer-events-none z-10" preserveAspectRatio="none" viewBox="0 0 100 100">
+                            <path d={`M 0,${100 - (data1[0]/m1)*100} L ${toPoints(data1, m1)}`} fill="none" stroke={color1} strokeWidth="2" className="transition-all duration-1000 ease-in-out" />
+                            {data2 && <path d={`M 0,${100 - (data2[0]/maxForData2)*100} L ${toPoints(data2, maxForData2)}`} fill="none" stroke={color2} strokeWidth="2" className="transition-all duration-1000 ease-in-out" />}
+                            <path d={`M 0,100 L 0,${100 - (data1[0]/m1)*100} L ${toPoints(data1, m1)} L 100,100 Z`} fill={`url(#grad-${color1.replace('#','')})`} opacity="0.2" className="transition-all duration-1000 ease-in-out" />
+                            <defs>
+                            <linearGradient id={`grad-${color1.replace('#','')}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stopColor={color1} stopOpacity="1" />
+                                <stop offset="100%" stopColor={color1} stopOpacity="0" />
+                            </linearGradient>
+                            </defs>
+                        </svg>
+
+                        <div className="absolute bottom-0 left-0 w-full flex justify-between text-[9px] text-slate-500 px-1 z-0 font-mono">
+                            {xLabels.map((label, idx) => <span key={idx}>{label}</span>)}
+                        </div>
+
+                        <div className="absolute top-0 left-0 w-full h-[calc(100%-1.25rem)] flex z-20">
+                            {data1.map((_, i) => (
+                                <div key={i} className="flex-1 h-full" onMouseEnter={() => setHoverIndex(i)} style={{ cursor: 'crosshair' }} />
+                            ))}
+                        </div>
+
+                        {hoverIndex !== null && (
+                            <div className="absolute top-0 left-0 w-full h-[calc(100%-1.25rem)] pointer-events-none z-30">
+                                <div className="absolute top-0 bottom-0 border-l border-dashed border-cyan-400/50 transition-all duration-200" style={{ left: `${(hoverIndex / (data1.length - 1)) * 100}%` }} />
+                                <div className="absolute w-2 h-2 rounded-full border border-white transform -translate-x-1/2 -translate-y-1/2 transition-all duration-200" style={{ left: `${(hoverIndex / (data1.length - 1)) * 100}%`, top: `${100 - (data1[hoverIndex] / m1) * 100}%`, backgroundColor: color1, boxShadow: `0 0 8px ${color1}` }} />
+                                {data2 && <div className="absolute w-2 h-2 rounded-full border border-white transform -translate-x-1/2 -translate-y-1/2 transition-all duration-200" style={{ left: `${(hoverIndex / (data1.length - 1)) * 100}%`, top: `${100 - (data2[hoverIndex] / maxForData2) * 100}%`, backgroundColor: color2, boxShadow: `0 0 8px ${color2}` }} />}
+                                
+                                <div className="absolute top-0 bg-[#0a1530]/95 border border-blue-500/50 p-2 rounded shadow-[0_0_15px_rgba(0,0,0,0.5)] text-[10px] whitespace-nowrap backdrop-blur-sm transition-transform duration-100" style={{ left: `${(hoverIndex / (data1.length - 1)) * 100}%`, transform: `translate(${hoverIndex > data1.length / 2 ? '-115%' : '15%'}, 0)` }}>
+                                    <div className="text-slate-400 mb-1 border-b border-blue-900/50 pb-1">{tt('chart.nodeRealtime', { n: hoverIndex + 1 })}</div>
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{backgroundColor: color1}}></span><span className="text-slate-300">{tt('chart.metric1')}</span></div>
+                                        <span className="font-mono text-cyan-50 font-bold">{data1[hoverIndex].toFixed(1)}</span>
+                                    </div>
+                                    {data2 && (
+                                        <div className="flex items-center justify-between gap-3 mt-1.5">
+                                            <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{backgroundColor: color2}}></span><span className="text-slate-300">{tt('chart.metric2')}</span></div>
+                                            <span className="font-mono text-cyan-50 font-bold">{data2[hoverIndex].toFixed(1)}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* 右侧Y轴 (Data2) */}
+                    {dualAxis && data2 && (
+                        <div className="flex flex-col justify-between items-start text-[9px] pl-2 pb-5 shrink-0 w-8 z-10 font-mono" style={{ color: color2 }}>
+                            <span>{Math.floor(m2)}</span>
+                            <span>{Math.floor(m2 / 2)}</span>
+                            <span>0</span>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const MiniBarChart = ({ data, colorFrom = "from-cyan-600", colorTo = "to-cyan-300", xLabels, yMax }) => {
+            const [hoverIndex, setHoverIndex] = useState(null);
+            const max = yMax || (Math.max(...data) * 1.2 || 100);
+            
+            return (
+                <div className="relative w-full h-full min-h-[80px] flex" onMouseLeave={() => setHoverIndex(null)}>
+                    <div className="flex flex-col justify-between items-end text-[9px] text-slate-500 pr-2 pb-5 shrink-0 w-8 z-10 font-mono">
+                        <span>{Math.floor(max)}</span><span>{Math.floor(max / 2)}</span><span>0</span>
+                    </div>
+
+                    <div className="relative flex-1 h-full">
+                        <div className="absolute inset-0 pb-5 flex flex-col justify-between pointer-events-none z-0">
+                            <div className="w-full border-t border-dashed border-blue-900/40"></div>
+                            <div className="w-full border-t border-dashed border-blue-900/40"></div>
+                            <div className="w-full border-t border-dashed border-blue-900/40"></div>
+                        </div>
+
+                        <div className="absolute top-0 left-0 w-full h-[calc(100%-1.25rem)] flex justify-between gap-1.5 lg:gap-2 z-10 items-end">
+                            {data.map((val, i) => (
+                                <div key={i} className="flex-1 flex flex-col justify-end h-full relative group cursor-pointer" onMouseEnter={() => setHoverIndex(i)}>
+                                    <div className="w-full bg-blue-900/30 relative flex flex-col justify-end flex-1 rounded-t-sm">
+                                        <div className={`w-full bg-gradient-to-t ${colorFrom} ${colorTo} transition-all duration-1000 rounded-t-sm group-hover:opacity-80 group-hover:shadow-[0_0_10px_rgba(34,211,238,0.5)]`} style={{ height: `${(val / max) * 100}%` }}></div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="absolute bottom-0 left-0 w-full flex justify-between text-[9px] text-slate-500 z-0 font-mono">
+                            {xLabels.map((label, idx) => (
+                                <div key={idx} className="flex-1 flex justify-center whitespace-nowrap"><span className={`transition-colors ${hoverIndex === idx ? "text-cyan-400 font-bold" : ""}`}>{label}</span></div>
+                            ))}
+                        </div>
+
+                        {hoverIndex !== null && (
+                            <div className="absolute top-0 pointer-events-none bg-[#0a1530]/95 border border-blue-500/50 p-2 rounded shadow-[0_0_15px_rgba(0,0,0,0.5)] text-[10px] z-30 whitespace-nowrap backdrop-blur-sm transition-transform duration-100" style={{ left: `${(hoverIndex / data.length) * 100 + (50 / data.length)}%`, transform: `translate(${hoverIndex >= data.length / 2 ? '-115%' : '15%'}, 0)` }}>
+                                <div className="text-slate-400 mb-1 border-b border-blue-900/50 pb-1">{tt('chart.labelRealtime', { label: xLabels[hoverIndex] })}</div>
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span><span className="text-slate-300">{tt('chart.value')}</span></div>
+                                    <span className="font-mono text-cyan-50 font-bold">{data[hoverIndex].toFixed(1)}</span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const CircleProgress = ({ percentage, label, color = "#0ea5e9", size = 80 }) => {
+            const radius = 36;
+            const circumference = 2 * Math.PI * radius;
+            const strokeDashoffset = circumference - (percentage / 100) * circumference;
+
+            return (
+                <div className="relative flex flex-col items-center justify-center" style={{ width: size, height: size }}>
+                <svg className="transform -rotate-90 w-full h-full" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r={radius} stroke="rgba(14, 165, 233, 0.2)" strokeWidth="8" fill="none" />
+                    <circle cx="50" cy="50" r={radius} stroke={color} strokeWidth="8" fill="none" strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} className="transition-all duration-1000" />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-sm font-mono font-bold text-white"><AnimatedNumber value={percentage} isFloat={false} />%</span>
+                </div>
+                {label && <div className="absolute -bottom-5 text-[10px] text-cyan-400/80 whitespace-nowrap">{label}</div>}
+                </div>
+            );
+        };
+
+        // ==============================
+        // 核心地图组件重构：星型集群拓扑 (Star Cluster Topology)
+        // 完全抛弃城市间的虚假互联，强调"城市作为枢纽，收集旗下物理站点"的业务逻辑
+        // ==============================
+        const ThreeProvinceMapPanel = ({ selectedStationId, onSelectStation }) => {
+            const canvasRef = React.useRef(null);
+            const animRef = React.useRef(null);
+            const [hovered, setHovered] = React.useState(null);
+            const [mousePos, setMousePos] = React.useState({x:0, y:0});
+
+            const stationsRef = React.useRef(STATION_CATALOG.map(s => localizeStation({ ...s })));
+
+            React.useEffect(() => {
+                const t = setInterval(() => {
+                    stationsRef.current = stationsRef.current.map(s => ({
+                        ...s,
+                        power: +(s.power * (0.98 + Math.random()*0.04)).toFixed(1),
+                        today: +(s.today + Math.random()*2).toFixed(1)
+                    }));
+                }, 2000);
+                return () => clearInterval(t);
+            }, []);
+
+            React.useEffect(() => {
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+                let time = 0;
+
+                function getPx(coord, max) {
+                    return 48 + (coord / 100) * (max - 96); // 留边，拉满可用画布
+                }
+
+                function clusterRadiusOf(st) {
+                    return 16 + st.subCount * 1.8; // 缩小控制域，避免节点挤叠
+                }
+
+                function render() {
+                    time += 0.016;
+                    const W = canvas.width;
+                    const H = canvas.height;
+                    ctx.clearRect(0, 0, W, H);
+
+                    // 1. 绘制底层抽象网络脉络
+                    ctx.save();
+                    ctx.strokeStyle = 'rgba(14, 165, 233, 0.08)';
+                    ctx.lineWidth = 1;
+                    for (let i = 0; i < W; i += 40) {
+                        ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, H); ctx.stroke();
+                    }
+                    for (let i = 0; i < H; i += 40) {
+                        ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(W, i); ctx.stroke();
+                    }
+                    ctx.restore();
+
+                    // 2. 绘制星型集群拓扑 (每个城市包含多个子站点)
+                    stationsRef.current.forEach((st, i) => {
+                        const px = getPx(st.x, W);
+                        const py = getPx(st.y, H);
+                        const isWarn = st.status === 'warning';
+                        const mainColor = isWarn ? '#ef4444' : '#22d3ee';
+                        const glowColor = isWarn ? 'rgba(239, 68, 68, 0.12)' : 'rgba(34, 211, 238, 0.12)';
+                        
+                        const clusterRadius = clusterRadiusOf(st);
+                        
+                        // 绘制集群控制域背景
+                        ctx.beginPath();
+                        ctx.arc(px, py, clusterRadius, 0, Math.PI * 2);
+                        ctx.fillStyle = glowColor;
+                        ctx.strokeStyle = isWarn ? 'rgba(239, 68, 68, 0.28)' : 'rgba(34, 211, 238, 0.28)';
+                        ctx.lineWidth = 1;
+                        ctx.setLineDash([3, 3]);
+                        ctx.fill(); 
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+
+                        // 绘制子节点及其到中心的连线
+                        for (let j = 0; j < st.subCount; j++) {
+                            const angle = (Math.PI * 2 / st.subCount) * j - Math.PI / 2;
+                            const dist = clusterRadius * 0.72;
+                            const sx = px + Math.cos(angle) * dist;
+                            const sy = py + Math.sin(angle) * dist;
+
+                            ctx.beginPath();
+                            ctx.moveTo(sx, sy);
+                            ctx.lineTo(px, py);
+                            ctx.strokeStyle = isWarn ? 'rgba(239, 68, 68, 0.35)' : 'rgba(34, 211, 238, 0.35)';
+                            ctx.lineWidth = 1;
+                            ctx.setLineDash([2, 3]);
+                            ctx.lineDashOffset = -time * 15;
+                            ctx.stroke();
+                            ctx.setLineDash([]);
+
+                            ctx.beginPath();
+                            ctx.arc(sx, sy, 2.5, 0, Math.PI * 2);
+                            ctx.fillStyle = mainColor;
+                            ctx.fill();
+                            ctx.beginPath();
+                            ctx.arc(sx, sy, 5.5, 0, Math.PI * 2);
+                            ctx.fillStyle = isWarn ? 'rgba(239, 68, 68, 0.35)' : 'rgba(34, 211, 238, 0.35)';
+                            ctx.fill();
+                        }
+
+                        const pulse = 0.5 + 0.5 * Math.sin(time * 3 + i);
+
+                        ctx.beginPath();
+                        ctx.arc(px, py, 11 + 3 * pulse, 0, Math.PI * 2);
+                        ctx.fillStyle = isWarn ? 'rgba(239, 68, 68, 0.35)' : 'rgba(34, 211, 238, 0.35)';
+                        ctx.fill();
+
+                        ctx.beginPath();
+                        ctx.arc(px, py, 8, 0, Math.PI * 2);
+                        ctx.fillStyle = '#0a1530';
+                        ctx.strokeStyle = mainColor;
+                        ctx.lineWidth = 2;
+                        ctx.fill();
+                        ctx.stroke();
+
+                        ctx.beginPath();
+                        ctx.arc(px, py, 3, 0, Math.PI * 2);
+                        ctx.fillStyle = mainColor;
+                        ctx.fill();
+
+                        ctx.save();
+                        ctx.font = 'bold 11px sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'bottom';
+                        ctx.fillStyle = '#f8fafc';
+                        ctx.shadowColor = '#000';
+                        ctx.shadowBlur = 4;
+                        ctx.fillText(`${st.city}·${st.typeLabel}`, px, py - clusterRadius - 4);
+
+                        ctx.font = 'bold 10px monospace';
+                        ctx.textBaseline = 'top';
+                        ctx.fillStyle = mainColor;
+                        ctx.fillText(`${st.power.toFixed(1)} MW`, px, py + clusterRadius + 4);
+                        ctx.restore();
+                        
+                        if (hovered === i || st.id === selectedStationId) {
+                            ctx.beginPath();
+                            ctx.arc(px, py, clusterRadius + 5, 0, Math.PI * 2);
+                            ctx.strokeStyle = '#f8fafc';
+                            ctx.lineWidth = 1.5;
+                            ctx.setLineDash([4, 4]);
+                            ctx.lineDashOffset = time * 20;
+                            ctx.stroke();
+                            ctx.setLineDash([]);
+                        }
+                    });
+
+                    animRef.current = requestAnimationFrame(render);
+                }
+
+                function resize() {
+                    const p = canvas.parentElement;
+                    canvas.width  = p.clientWidth  || 800;
+                    canvas.height = p.clientHeight || 500;
+                }
+                const ro = new ResizeObserver(resize);
+                ro.observe(canvas.parentElement);
+                resize();
+                animRef.current = requestAnimationFrame(render);
+                return () => { cancelAnimationFrame(animRef.current); ro.disconnect(); };
+            }, [hovered, selectedStationId]);
+
+            function handleMouseMove(e) {
+                const canvas = canvasRef.current;
+                const rect   = canvas.getBoundingClientRect();
+                const mx = (e.clientX - rect.left) * (canvas.width  / rect.width);
+                const my = (e.clientY - rect.top)  * (canvas.height / rect.height);
+                const W  = canvas.width, H = canvas.height;
+                const toPx = (coord, max) => 48 + (coord / 100) * (max - 96);
+
+                let found = null;
+                stationsRef.current.forEach((st, i) => {
+                    const cx = toPx(st.x, W);
+                    const cy = toPx(st.y, H);
+                    const clusterRadius = 16 + st.subCount * 1.8;
+                    if (Math.hypot(mx - cx, my - cy) < clusterRadius) found = i;
+                });
+                setHovered(found);
+                setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+            }
+
+            const hov = hovered !== null ? stationsRef.current[hovered] : null;
+
+            return (
+                <div className="flex-[5] min-h-0 relative overflow-hidden border border-blue-500/20 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-900/20 via-[#060d1f] to-[#060d1f]">
+                    <canvas
+                        ref={canvasRef}
+                        style={{width:'100%', height:'100%', display:'block', cursor: hovered !== null ? 'pointer' : 'default'}}
+                        onMouseMove={handleMouseMove}
+                        onMouseLeave={() => setHovered(null)}
+                        onClick={() => {
+                            if (hovered !== null && onSelectStation) {
+                                onSelectStation(stationsRef.current[hovered].id);
+                            }
+                        }}
+                    />
+                    
+                    {/* 悬浮 Tooltip */}
+                    {hov && (
+                        <div style={{
+                            position:'absolute',
+                            left: mousePos.x > 400 ? mousePos.x - 240 : mousePos.x + 20,
+                            top: mousePos.y > 250 ? mousePos.y - 160 : mousePos.y + 20,
+                            background:'rgba(10,21,48,0.95)', border:'1px solid rgba(34,211,238,0.5)',
+                            borderRadius:8, padding:'14px 16px', minWidth:220, pointerEvents:'none', zIndex:50,
+                            backdropFilter:'blur(8px)', boxShadow:'0 10px 30px rgba(0,0,0,0.5)',
+                        }}>
+                            <div style={{ color: hov.status === 'warning' ? '#ef4444' : '#22d3ee', fontWeight:'bold', fontSize:14, borderBottom:'1px solid rgba(34,211,238,0.2)', paddingBottom:8, marginBottom:8, display:'flex', alignItems:'center', gap:8 }}>
+                                <span className={`w-2.5 h-2.5 rounded-full ${hov.status === 'warning' ? 'bg-red-500 animate-ping' : 'bg-cyan-400'}`}></span>
+                                {hov.name}
+                            </div>
+                            {[
+                                [tt('map.field.type'), hov.typeLabel],
+                                [tt('map.field.subs'), `${hov.subCount}`],
+                                [tt('map.field.cap'), tt('map.unit.cap', { n: hov.cap })],
+                                [tt('map.field.powerMw'), `${hov.power} MW`],
+                                [tt('map.field.todayMwh'), `${hov.today} MWh`],
+                                [tt('map.field.load'), `${((hov.power/hov.cap)*100).toFixed(1)}%`],
+                            ].map(([label, val]) => (
+                                <div key={label} style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginTop:6 }}>
+                                    <span style={{color:'#94a3b8'}}>{label}</span>
+                                    <span style={{color:'#f8fafc', fontFamily:'monospace', fontWeight:'bold'}}>{val}</span>
+                                </div>
+                            ))}
+                            <div style={{display:'flex', justifyContent:'space-between', fontSize:12, marginTop:8, paddingTop:8, borderTop:'1px dashed rgba(255,255,255,0.1)'}}>
+                                <span style={{color:'#94a3b8'}}>{tt('station.statusOverview')}</span>
+                                <span style={{color: hov.status === 'warning' ? '#f87171' : '#34d399', fontWeight:'bold'}}>
+                                    {hov.status === 'warning' ? tt('map.status.warn') : tt('map.status.ok')}
+                                </span>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // ==============================
+        // 视图 2：电力资源管理智能体
+        // ==============================
+        const PowerAgentView = ({ selectedStationId, onSelectStation }) => {
+            const lineData1 = useDynamicData([40, 50, 45, 60, 80, 75, 90, 85, 95, 80, 70, 75], 5);
+            // 碳排放量数据量级远超新能源出力，启用双Y轴必须配置正确的现实数据结构
+            const lineData2 = useDynamicData([2800, 3200, 2950, 3600, 4200, 3900, 4500, 4250, 4800, 4000, 3500, 3750], 150);
+            const barData = useDynamicData([60, 80, 45, 90, 75, 50, 85, 60], 5);
+
+            const [topStats, setTopStats] = useState([
+                { id: 'greenUse', labelKey: 'cluster.stat.greenUse', value: 6815.2, unit: 'MW', isFloat: true },
+                { id: 'greenRatio', labelKey: 'cluster.stat.greenRatio', value: 78.31, unit: '%', isFloat: true },
+                { id: 'greenMatch', labelKey: 'cluster.stat.greenMatch', value: 42.36, unit: '%', isFloat: true },
+                { id: 'loadMatch', labelKey: 'cluster.stat.loadMatch', value: 55.05, unit: '%', isFloat: true },
+                { id: 'computeDispatch', labelKey: 'cluster.stat.computeDispatch', value: 312, unit: '', isFloat: false },
+                { id: 'computeUsage', labelKey: 'cluster.stat.computeUsage', value: 34.19, unit: '%', isFloat: true },
+            ]);
+
+            const [subStats, setSubStats] = useState([
+                { id: 'balance', labelKey: 'cluster.stat.balance', value: 93.55, unit: '%', isFloat: true },
+                { id: 'priorityJobs', labelKey: 'cluster.stat.priorityJobs', value: 13, unit: '', isFloat: false },
+                { id: 'jobRate', labelKey: 'cluster.stat.jobRate', value: 100, unit: '%', isFloat: false },
+                { id: 'nodeDispatch', labelKey: 'cluster.stat.nodeDispatch', value: 341, unit: '', isFloat: false },
+                { id: 'carbon', labelKey: 'cluster.stat.carbon', value: 5124, unit: '', isFloat: false },
+            ]);
+
+            const [responsiveness, setResponsiveness] = useState({ center: 45.22, left: 25.21, right: 52.20 });
+
+            useEffect(() => {
+                const timer = setInterval(() => {
+                setTopStats(prev => prev.map(s => ({ ...s, value: Math.max(0, s.value + (s.isFloat ? (Math.random() * 1.5 - 0.75) : Math.floor(Math.random() * 5 - 2))) })));
+                setSubStats(prev => prev.map(s => s.id === 'jobRate' ? s : { ...s, value: Math.max(0, s.value + (s.isFloat ? (Math.random() * 1 - 0.5) : Math.floor(Math.random() * 3 - 1))) }));
+                setResponsiveness(prev => ({
+                    center: Math.max(0, Math.min(100, prev.center + (Math.random() * 2 - 1))),
+                    left: Math.max(0, Math.min(100, prev.left + (Math.random() * 1.5 - 0.75))),
+                    right: Math.max(0, Math.min(100, prev.right + (Math.random() * 1.5 - 0.75)))
+                }));
+                }, 2500);
+                return () => clearInterval(timer);
+            }, []);
+
+            const tableData = Array.from({ length: 10 }).map((_, i) => ({ id: i, nameKey: 'cluster.task.n', nameN: i + 1, space: 213 + i*5, task: 341 - i*2, node: 153 + i*3, res: 123 + i }));
+
+            return (
+                <div className="flex-1 grid grid-cols-12 gap-4 h-full animate-fade-in min-h-0">
+                <div className="col-span-3 flex flex-col gap-4">
+                    <TechCard title={tt('cluster.card.energy')} className="flex-1 min-h-0">
+                    <div className="flex justify-end gap-2 text-[10px] text-slate-400 mb-2">
+                        <span className="flex items-center gap-1"><span className="w-2 h-2 bg-[#0ea5e9] rounded-full"></span>{tt('cluster.legend.centerA')}</span>
+                    </div>
+                    <div className="flex-1 mt-2"><MiniLineChart data1={lineData1} color1="#0ea5e9" /></div>
+                    </TechCard>
+                    
+                    <TechCard title={tt('cluster.card.dual')} className="flex-1 min-h-0">
+                    <div className="flex justify-end gap-2 text-[10px] text-slate-400 mb-2">
+                        <span className="flex items-center gap-1"><span className="w-2 h-2 bg-green-500 rounded-full"></span>{tt('cluster.legend.renew')}</span>
+                        <span className="flex items-center gap-1"><span className="w-2 h-2 bg-orange-500 rounded-full"></span>{tt('cluster.legend.carbon')}</span>
+                    </div>
+                    <div className="flex-1 mt-2"><MiniLineChart data1={lineData1} data2={lineData2} color1="#10b981" color2="#f97316" dualAxis={true} yMax1={120} yMax2={6000} /></div>
+                    </TechCard>
+
+                    <TechCard title={tt('cluster.card.resp')} className="flex-1 min-h-0 flex flex-col">
+                    <div className="relative flex flex-col justify-center items-center w-full h-full">
+                        <div className="w-24 h-24 lg:w-28 lg:h-28 rounded-full border border-cyan-500/30 flex items-center justify-center bg-cyan-900/20 shadow-[0_0_20px_rgba(6,182,212,0.2)] my-auto shrink-0">
+                            <div className="text-2xl lg:text-3xl font-bold text-cyan-300">
+                            <AnimatedNumber value={responsiveness.center} isFloat={true} /><span className="text-sm lg:text-base">%</span>
+                            </div>
+                        </div>
+                        <div className="w-full flex justify-between px-2 pb-1 mt-auto shrink-0">
+                            <div className="text-center">
+                            <div className="text-cyan-400 text-xs lg:text-sm font-bold"><AnimatedNumber value={responsiveness.left} isFloat={true} />%</div>
+                            <div className="text-[10px] text-slate-400">{tt('cluster.resp.a')}</div>
+                            </div>
+                            <div className="text-center">
+                            <div className="text-cyan-400 text-xs lg:text-sm font-bold"><AnimatedNumber value={responsiveness.right} isFloat={true} />%</div>
+                            <div className="text-[10px] text-slate-400">{tt('cluster.resp.b')}</div>
+                            </div>
+                        </div>
+                    </div>
+                    </TechCard>
+                </div>
+
+                <div className="col-span-6 flex flex-col gap-4">
+                    <div className="flex flex-col gap-2 shrink-0">
+                    <div className="grid grid-cols-6 gap-2">
+                        {topStats.map((s) => (
+                        <div key={s.id} className="bg-gradient-to-b from-blue-900/40 to-transparent border-t-2 border-cyan-400/80 rounded flex flex-col items-center py-2 relative overflow-hidden group">
+                            <div className="text-[11px] text-slate-300">{tt(s.labelKey)}</div>
+                            <div className="text-lg font-mono font-bold text-cyan-300 mt-1 transition-all duration-300">
+                            <AnimatedNumber value={s.value} isFloat={s.isFloat} /> <span className="text-[10px] text-cyan-600">{s.unit}</span>
+                            </div>
+                            <div className="absolute bottom-0 w-full h-1 bg-cyan-400/20 transform translate-y-full group-hover:translate-y-0 transition-transform"></div>
+                        </div>
+                        ))}
+                    </div>
+                    <div className="grid grid-cols-5 gap-2 mt-2">
+                        {subStats.map((s) => (
+                        <div key={s.id} className="flex flex-col items-center justify-center bg-[#07132b]/80 border border-blue-800/50 py-1.5 rounded-full">
+                            <div className="text-sm font-mono text-white font-bold transition-all duration-300">
+                                <AnimatedNumber value={s.value} isFloat={s.isFloat} />{s.unit}
+                            </div>
+                            <div className="text-[10px] text-slate-400">{tt(s.labelKey)}</div>
+                        </div>
+                        ))}
+                    </div>
+                    </div>
+
+                    <ThreeProvinceMapPanel selectedStationId={selectedStationId} onSelectStation={onSelectStation} />
+
+                    <TechCard title={tt('cluster.card.strategy')} className="flex-[3] min-h-0">
+                    <div className="grid grid-cols-6 text-[10px] text-cyan-500 bg-blue-950/40 py-1.5 px-2 mb-1">
+                        <div>{tt('cluster.col.task')}</div><div className="text-center">{tt('cluster.col.space')}</div><div className="text-center">{tt('cluster.col.taskSched')}</div>
+                        <div className="text-center">{tt('cluster.col.node')}</div><div className="text-center">{tt('cluster.col.res')}</div><div className="text-right">{tt('cluster.col.action')}</div>
+                    </div>
+                    <div className="flex-1 overflow-hidden relative" style={{ maskImage: 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)' }}>
+                        <div className="absolute w-full animate-scroll-up">
+                        {[...tableData, ...tableData].map((row, i) => (
+                            <div key={i} className="grid grid-cols-6 text-xs text-slate-300 py-2 border-b border-blue-900/30 hover:bg-blue-900/20 px-2 transition-colors">
+                            <div className="font-mono text-cyan-200">{tt(row.nameKey, { n: row.nameN })}</div><div className="text-center font-mono">{row.space}</div>
+                            <div className="text-center font-mono text-green-400">{row.task}</div><div className="text-center font-mono">{row.node}</div>
+                            <div className="text-center font-mono text-yellow-400">{row.res}</div><div className="text-right text-cyan-500 cursor-pointer hover:text-cyan-300">{tt('cluster.action.edit')}</div>
+                            </div>
+                        ))}
+                        </div>
+                    </div>
+                    </TechCard>
+                </div>
+
+                <div className="col-span-3 flex flex-col gap-4">
+                    <TechCard title={tt('cluster.card.predEnergy')} className="flex-1 min-h-0">
+                        <div className="flex justify-end gap-2 text-[10px] text-slate-400 mb-2">
+                            <span className="flex items-center gap-1"><span className="w-2 h-2 bg-[#f43f5e] rounded-full"></span>{tt('cluster.legend.pred')}</span>
+                            <span className="flex items-center gap-1"><span className="w-2 h-2 bg-[#0ea5e9] rounded-full"></span>{tt('cluster.legend.base')}</span>
+                        </div>
+                        <div className="flex-1 mt-2"><MiniLineChart data1={lineData2} data2={lineData1} color1="#f43f5e" color2="#0ea5e9" /></div>
+                    </TechCard>
+                    
+                    <TechCard title={tt('cluster.card.dispatch')} className="flex-1 min-h-0">
+                        <div className="flex justify-end gap-2 text-[10px] text-slate-400 mb-2">
+                            <span className="flex items-center gap-1"><span className="w-2 h-2 bg-cyan-400 rounded-full"></span>{tt('cluster.legend.slack')}</span>
+                        </div>
+                        <div className="flex-1 mt-2 min-h-0 pr-1"><MiniBarChart data={barData} xLabels={barData.map((_, i) => tt('center.n', { n: i+1 }))} /></div>
+                    </TechCard>
+                    
+                    <TechCard title={tt('cluster.card.carbonPred')} className="flex-1 min-h-0">
+                        <div className="flex justify-end gap-2 text-[10px] text-slate-400 mb-2">
+                            <span className="flex items-center gap-1"><span className="w-2 h-2 bg-[#d946ef] rounded-full"></span>{tt('cluster.legend.carbon24h')}</span>
+                        </div>
+                        <div className="flex-1 mt-2"><MiniLineChart data1={lineData1} color1="#d946ef" /></div>
+                    </TechCard>
+                </div>
+                </div>
+            );
+        };
+
+
+        const STATION_STORAGE_KEY = 'ps-selected-station';
+        function getSelectedStationId() {
+            try {
+                const id = sessionStorage.getItem(STATION_STORAGE_KEY);
+                if (id && STATION_CATALOG.some(s => s.id === id)) return id;
+            } catch (e) {}
+            return STATION_CATALOG[0].id;
+        }
+        function setSelectedStationId(id) {
+            try { sessionStorage.setItem(STATION_STORAGE_KEY, id); } catch (e) {}
+        }
+        function navClass(active, variant) {
+            if (active) {
+                if (variant === 'compute') {
+                    return 'px-4 py-1.5 text-sm rounded transition-all font-bold bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-[0_0_10px_rgba(59,130,246,0.5)]';
+                }
+                return 'px-4 py-1.5 text-sm rounded transition-all font-bold bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-[0_0_10px_rgba(6,182,212,0.5)]';
+            }
+            if (variant === 'compute') {
+                return 'px-4 py-1.5 text-sm rounded transition-all font-bold text-slate-400 hover:text-blue-300 hover:bg-blue-900/30';
+            }
+            return 'px-4 py-1.5 text-sm rounded transition-all font-bold text-slate-400 hover:text-cyan-300 hover:bg-blue-900/30';
+        }
+        // Isolated so the 1s tick does not re-render AppShell and wipe #static-i18n-switcher
+        function HeaderClock() {
+            const [time, setTime] = useState(new Date());
+            useEffect(() => {
+                const timer = setInterval(() => setTime(new Date()), 1000);
+                return () => clearInterval(timer);
+            }, []);
+            const y = time.getFullYear();
+            const m = String(time.getMonth() + 1).padStart(2, '0');
+            const d = String(time.getDate()).padStart(2, '0');
+            const h = String(time.getHours()).padStart(2, '0');
+            const min = String(time.getMinutes()).padStart(2, '0');
+            const s = String(time.getSeconds()).padStart(2, '0');
+            return (
+                <div className="flex items-center gap-2 text-cyan-300 font-mono bg-blue-950/30 px-3 py-1 rounded border border-blue-900/50">
+                    <Clock className="w-4 h-4" />{`${y}-${m}-${d} ${h}:${min}:${s}`}
+                </div>
+            );
+        }
+        function AppShell({ activeView, children }) {
+            const [lang, setLang] = useState(() => (window.PagesI18n ? PagesI18n.getLang() : 'zh'));
+            useEffect(() => {
+                const onChange = (e) => {
+                    if (e.detail && e.detail.lang) setLang(e.detail.lang);
+                };
+                window.addEventListener('static-i18n:change', onChange);
+                if (window.PagesI18n && PagesI18n.remountSwitcher) {
+                    PagesI18n.remountSwitcher();
+                }
+                return () => window.removeEventListener('static-i18n:change', onChange);
+            }, []);
+            // React clears unmanaged DOM children under this host on commit — repaint after each shell render
+            React.useLayoutEffect(() => {
+                if (window.PagesI18n && PagesI18n.remountSwitcher) {
+                    PagesI18n.remountSwitcher();
+                }
+            });
+            const langQ = '?lang=' + lang;
+            // Do NOT key={lang} on the shell — remounting destroys the switcher mid-click
+            return (
+                <div className="min-h-screen flex flex-col">
+                    <header className="h-16 flex items-center justify-between px-6 border-b border-blue-900/50 bg-[#060d1f] relative z-20">
+                        <div className="flex items-center gap-8">
+                        <div className="flex items-center gap-2 text-cyan-400">
+                            <Globe className="w-6 h-6 animate-pulse" />
+                            <h1 className="text-xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-500">{tt('brand.title')}</h1>
+                        </div>
+                        <nav className="flex gap-2 bg-[#050b14] p-1 rounded-lg border border-blue-900/50">
+                            <a href={'single.html' + langQ} className={navClass(activeView === 'single')}>{tt('nav.single')}</a>
+                            <a href={'cluster.html' + langQ} className={navClass(activeView === 'power')}>{tt('nav.cluster')}</a>
+                            <a href={'compute.html' + langQ} className={navClass(activeView === 'compute', 'compute')}>{tt('nav.compute')}</a>
+                        </nav>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm">
+                        <div id="static-i18n-switcher"></div>
+                        <HeaderClock />
+                        </div>
+                    </header>
+                    <main key={lang} className="flex-1 p-3 overflow-hidden relative flex flex-col h-[calc(100vh-4rem)]">
+                        {children}
+                    </main>
+                </div>
+            );
+        }
+
+        function App() {
+            const [selectedStationId, setSelected] = useState(getSelectedStationId());
+            const onSelectStation = (id) => {
+                setSelectedStationId(id);
+                setSelected(id);
+            };
+            return (
+                <AppShell activeView="power">
+                    <PowerAgentView selectedStationId={selectedStationId} onSelectStation={onSelectStation} />
+                </AppShell>
+            );
+        }
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+
+    </script>
+</body>
+</html>

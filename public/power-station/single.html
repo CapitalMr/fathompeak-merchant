@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="meta.title">融合智慧算网中枢</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link rel="stylesheet" href="shared.css?v=contrast">
+    <script src="i18n/runtime.js"></script>
+    <script src="i18n/zh.js"></script>
+    <script src="i18n/en.js"></script>
+    <script>PagesI18n.activate('power-station');</script>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // ==============================
+        // SVG 图标库
+        // ==============================
+        const Icon = ({ path, className, ...props }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>
+                {path}
+            </svg>
+        );
+        const Globe = (p) => <Icon {...p} path={<><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></>} />;
+        const Clock = (p) => <Icon {...p} path={<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>} />;
+        const Cpu = (p) => <Icon {...p} path={<><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 21v3M15 21v3M20 9h3M20 14h3M1 9h3M1 14h3"/></>} />;
+        const Server = (p) => <Icon {...p} path={<><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></>} />;
+        const Layers = (p) => <Icon {...p} path={<><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></>} />;
+        const Database = (p) => <Icon {...p} path={<><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></>} />;
+        const Hexagon = (p) => <Icon {...p} path={<><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></>} />;
+        const ZapIcon = (p) => <Icon {...p} path={<><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></>} />;
+        const Navigation = (p) => <Icon {...p} path={<><polygon points="3 11 22 2 13 21 11 13 3 11"/></>} />;
+
+        // 与 tokenseller.html 完全统一：name 为对外展示名，city 为图表短标签（须与 name 一致，不得出现未对外使用的地名）
+        const STATION_CATALOG = [
+            // x/y：集群拓扑图（西=左、北=上）；geoX/geoY：全国算力地图。坐标按大致地理方位等比铺开
+            { id: 'xj-pv', city: '新疆', name: '新疆集中式光伏电站', type: 'centralized-pv', typeLabel: '集中式光伏', x: 10, y: 26, geoX: 10, geoY: 28, power: 142.3, today: 528.6, cap: 220, status: 'normal', subCount: 8 },
+            { id: 'bj-dx', city: '北京大兴', name: '北京大兴区分布式光伏电站', type: 'distributed-pv', typeLabel: '分布式光伏', x: 58, y: 20, geoX: 48, geoY: 18, power: 85.2, today: 312.5, cap: 120, status: 'normal', subCount: 4 },
+            { id: 'tj-pv', city: '天津', name: '天津分布式光伏电站', type: 'distributed-pv', typeLabel: '分布式光伏', x: 72, y: 18, geoX: 58, geoY: 22, power: 62.7, today: 248.0, cap: 90, status: 'normal', subCount: 3 },
+            { id: 'hb-sz', city: '河北深州', name: '河北深州集中式光伏电站', type: 'centralized-pv', typeLabel: '集中式光伏', x: 52, y: 42, geoX: 42, geoY: 38, power: 91.5, today: 356.2, cap: 130, status: 'warning', subCount: 6 },
+            { id: 'js-gy', city: '江苏高邮', name: '江苏高邮集中式光伏电站', type: 'centralized-pv', typeLabel: '集中式光伏', x: 82, y: 48, geoX: 72, geoY: 48, power: 54.1, today: 201.3, cap: 80, status: 'normal', subCount: 4 },
+            { id: 'jx-wa', city: '江西', name: '江西水电电站', type: 'hydro', typeLabel: '水电', x: 58, y: 65, geoX: 48, geoY: 68, power: 103.8, today: 402.1, cap: 150, status: 'normal', subCount: 5 },
+            { id: 'gd-st', city: '广东汕头', name: '广东汕头海上风电电站', type: 'offshore-wind', typeLabel: '海上风电', x: 78, y: 88, geoX: 68, geoY: 82, power: 67.2, today: 261.5, cap: 95, status: 'normal', subCount: 3 },
+        ];
+
+        const STATION_TYPE_STYLE = {
+            'distributed-pv': { dot: 'bg-cyan-400', shadow: 'shadow-[0_0_15px_#22d3ee]', border: 'border-cyan-500/50', statusKey: 'status.stable' },
+            'centralized-pv': { dot: 'bg-blue-400', shadow: 'shadow-[0_0_15px_#60a5fa]', border: 'border-blue-500/50', statusKey: 'status.computing' },
+            'hydro': { dot: 'bg-emerald-400', shadow: 'shadow-[0_0_15px_#34d399]', border: 'border-emerald-500/50', statusKey: 'status.green' },
+            'wind': { dot: 'bg-amber-400', shadow: 'shadow-[0_0_15px_#fbbf24]', border: 'border-amber-500/50', statusKey: 'status.green' },
+            'offshore-wind': { dot: 'bg-amber-400', shadow: 'shadow-[0_0_15px_#fbbf24]', border: 'border-amber-500/50', statusKey: 'status.green' },
+        };
+
+        const SOURCE_TITLE_KEYS = {
+            'distributed-pv': 'source.distributed-pv',
+            'centralized-pv': 'source.centralized-pv',
+            'wind': 'source.wind',
+            'offshore-wind': 'source.offshore-wind',
+            'hydro': 'source.hydro',
+        };
+
+        function tt(key, vars) {
+            return (typeof t === 'function') ? t(key, vars) : key;
+        }
+        function localizeStation(st) {
+            if (!st) return st;
+            return Object.assign({}, st, {
+                name: tt('station.' + st.id + '.name'),
+                city: tt('station.' + st.id + '.city'),
+                typeLabel: tt('type.' + st.type),
+            });
+        }
+        function stationTypeStyle(type) {
+            const base = STATION_TYPE_STYLE[type] || STATION_TYPE_STYLE['distributed-pv'];
+            return Object.assign({}, base, { status: tt(base.statusKey) });
+        }
+        function sourceTitleFor(type) {
+            return tt(SOURCE_TITLE_KEYS[type] || SOURCE_TITLE_KEYS['distributed-pv']);
+        }
+
+        // ==============================
+        // 工具与自定义 Hook
+        // ==============================
+        const useDynamicData = (initialData, variance = 5, interval = 3000) => {
+            const [data, setData] = useState(initialData);
+            useEffect(() => {
+                const timer = setInterval(() => {
+                    setData(prev => prev.map(val => Math.max(0, val + (Math.random() * variance * 2 - variance))));
+                }, interval);
+                return () => clearInterval(timer);
+            }, [variance, interval]);
+            return data;
+        };
+
+        // ==============================
+        // 共享 UI 组件
+        // ==============================
+        const AnimatedNumber = ({ value, isFloat, compact = false }) => {
+            const [displayValue, setDisplayValue] = useState(value);
+
+            useEffect(() => {
+                let startValue = displayValue;
+                let endValue = value;
+                if (startValue === endValue) return;
+                
+                let startTime = null;
+                const duration = 1000;
+                let animationFrameId;
+
+                const animate = (currentTime) => {
+                    if (!startTime) startTime = currentTime;
+                    const progress = Math.min((currentTime - startTime) / duration, 1);
+                    const easeOut = 1 - Math.pow(1 - progress, 4);
+                    setDisplayValue(startValue + (endValue - startValue) * easeOut);
+                    
+                    if (progress < 1) animationFrameId = requestAnimationFrame(animate);
+                    else setDisplayValue(endValue);
+                };
+                
+                animationFrameId = requestAnimationFrame(animate);
+                return () => cancelAnimationFrame(animationFrameId);
+            }, [value]);
+
+            let formattedValue;
+            if (compact) {
+                if (displayValue >= 1000000) formattedValue = (displayValue / 1000000).toFixed(1) + 'M';
+                else if (displayValue >= 1000) formattedValue = (displayValue / 1000).toFixed(1) + 'K';
+                else formattedValue = Math.floor(displayValue).toString();
+            } else {
+                formattedValue = isFloat ? displayValue.toFixed(1) : Math.floor(displayValue).toLocaleString();
+            }
+
+            return <>{formattedValue}</>;
+        };
+
+        const TechCard = ({ title, children, className = "" }) => (
+            <div className={`relative bg-[#060d1f]/80 border border-blue-500/30 backdrop-blur-sm flex flex-col ${className}`}>
+                <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-blue-400"></div>
+                <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-blue-400"></div>
+                <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-blue-400"></div>
+                <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-blue-400"></div>
+                
+                {title && (
+                <div className="px-4 py-2 bg-gradient-to-r from-blue-900/50 to-transparent border-b border-blue-500/30 flex items-center gap-2">
+                    <div className="w-1.5 h-4 bg-cyan-400 rounded-sm skew-x-[-20deg]"></div>
+                    <h3 className="text-cyan-100 text-sm font-bold tracking-wider">{title}</h3>
+                </div>
+                )}
+                <div className="p-3 flex-1 flex flex-col overflow-hidden relative">
+                {children}
+                </div>
+            </div>
+        );
+
+        const MiniLineChart = ({ data1, data2, color1 = "#0ea5e9", color2 = "#10b981", xLabels = ['00:00', '12:00', '24:00'], dualAxis = false, yMax1, yMax2 }) => {
+            const [hoverIndex, setHoverIndex] = useState(null);
+            const m1 = yMax1 || (Math.max(...data1) * 1.2 || 100);
+            const m2 = dualAxis ? (yMax2 || (Math.max(...(data2 || [])) * 1.2 || 100)) : m1;
+            const maxForData2 = data2 ? (dualAxis ? m2 : m1) : m1;
+
+            const toPoints = (data, m) => data.map((val, i) => `${(i / (data.length - 1)) * 100},${100 - (val / m) * 100}`).join(' L ');
+            
+            return (
+                <div className="relative w-full h-full min-h-[80px] flex" onMouseLeave={() => setHoverIndex(null)}>
+                    {/* 左侧Y轴 (Data1) */}
+                    <div className="flex flex-col justify-between items-end text-[9px] pr-2 pb-5 shrink-0 w-8 z-10 font-mono" style={{ color: color1 }}>
+                        <span>{Math.floor(m1)}</span>
+                        <span>{Math.floor(m1 / 2)}</span>
+                        <span>0</span>
+                    </div>
+
+                    <div className="relative flex-1 h-full">
+                        <div className="absolute inset-0 pb-5 flex flex-col justify-between pointer-events-none z-0">
+                            <div className="w-full border-t border-dashed border-blue-900/40"></div>
+                            <div className="w-full border-t border-dashed border-blue-900/40"></div>
+                            <div className="w-full border-t border-dashed border-blue-900/40"></div>
+                        </div>
+
+                        <svg className="absolute top-0 left-0 w-full h-[calc(100%-1.25rem)] drop-shadow-md pointer-events-none z-10" preserveAspectRatio="none" viewBox="0 0 100 100">
+                            <path d={`M 0,${100 - (data1[0]/m1)*100} L ${toPoints(data1, m1)}`} fill="none" stroke={color1} strokeWidth="2" className="transition-all duration-1000 ease-in-out" />
+                            {data2 && <path d={`M 0,${100 - (data2[0]/maxForData2)*100} L ${toPoints(data2, maxForData2)}`} fill="none" stroke={color2} strokeWidth="2" className="transition-all duration-1000 ease-in-out" />}
+                            <path d={`M 0,100 L 0,${100 - (data1[0]/m1)*100} L ${toPoints(data1, m1)} L 100,100 Z`} fill={`url(#grad-${color1.replace('#','')})`} opacity="0.2" className="transition-all duration-1000 ease-in-out" />
+                            <defs>
+                            <linearGradient id={`grad-${color1.replace('#','')}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stopColor={color1} stopOpacity="1" />
+                                <stop offset="100%" stopColor={color1} stopOpacity="0" />
+                            </linearGradient>
+                            </defs>
+                        </svg>
+
+                        <div className="absolute bottom-0 left-0 w-full flex justify-between text-[9px] text-slate-500 px-1 z-0 font-mono">
+                            {xLabels.map((label, idx) => <span key={idx}>{label}</span>)}
+                        </div>
+
+                        <div className="absolute top-0 left-0 w-full h-[calc(100%-1.25rem)] flex z-20">
+                            {data1.map((_, i) => (
+                                <div key={i} className="flex-1 h-full" onMouseEnter={() => setHoverIndex(i)} style={{ cursor: 'crosshair' }} />
+                            ))}
+                        </div>
+
+                        {hoverIndex !== null && (
+                            <div className="absolute top-0 left-0 w-full h-[calc(100%-1.25rem)] pointer-events-none z-30">
+                                <div className="absolute top-0 bottom-0 border-l border-dashed border-cyan-400/50 transition-all duration-200" style={{ left: `${(hoverIndex / (data1.length - 1)) * 100}%` }} />
+                                <div className="absolute w-2 h-2 rounded-full border border-white transform -translate-x-1/2 -translate-y-1/2 transition-all duration-200" style={{ left: `${(hoverIndex / (data1.length - 1)) * 100}%`, top: `${100 - (data1[hoverIndex] / m1) * 100}%`, backgroundColor: color1, boxShadow: `0 0 8px ${color1}` }} />
+                                {data2 && <div className="absolute w-2 h-2 rounded-full border border-white transform -translate-x-1/2 -translate-y-1/2 transition-all duration-200" style={{ left: `${(hoverIndex / (data1.length - 1)) * 100}%`, top: `${100 - (data2[hoverIndex] / maxForData2) * 100}%`, backgroundColor: color2, boxShadow: `0 0 8px ${color2}` }} />}
+                                
+                                <div className="absolute top-0 bg-[#0a1530]/95 border border-blue-500/50 p-2 rounded shadow-[0_0_15px_rgba(0,0,0,0.5)] text-[10px] whitespace-nowrap backdrop-blur-sm transition-transform duration-100" style={{ left: `${(hoverIndex / (data1.length - 1)) * 100}%`, transform: `translate(${hoverIndex > data1.length / 2 ? '-115%' : '15%'}, 0)` }}>
+                                    <div className="text-slate-400 mb-1 border-b border-blue-900/50 pb-1">{tt('chart.nodeRealtime', { n: hoverIndex + 1 })}</div>
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{backgroundColor: color1}}></span><span className="text-slate-300">{tt('chart.metric1')}</span></div>
+                                        <span className="font-mono text-cyan-50 font-bold">{data1[hoverIndex].toFixed(1)}</span>
+                                    </div>
+                                    {data2 && (
+                                        <div className="flex items-center justify-between gap-3 mt-1.5">
+                                            <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{backgroundColor: color2}}></span><span className="text-slate-300">{tt('chart.metric2')}</span></div>
+                                            <span className="font-mono text-cyan-50 font-bold">{data2[hoverIndex].toFixed(1)}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* 右侧Y轴 (Data2) */}
+                    {dualAxis && data2 && (
+                        <div className="flex flex-col justify-between items-start text-[9px] pl-2 pb-5 shrink-0 w-8 z-10 font-mono" style={{ color: color2 }}>
+                            <span>{Math.floor(m2)}</span>
+                            <span>{Math.floor(m2 / 2)}</span>
+                            <span>0</span>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const MiniBarChart = ({ data, colorFrom = "from-cyan-600", colorTo = "to-cyan-300", xLabels, yMax }) => {
+            const [hoverIndex, setHoverIndex] = useState(null);
+            const max = yMax || (Math.max(...data) * 1.2 || 100);
+            
+            return (
+                <div className="relative w-full h-full min-h-[80px] flex" onMouseLeave={() => setHoverIndex(null)}>
+                    <div className="flex flex-col justify-between items-end text-[9px] text-slate-500 pr-2 pb-5 shrink-0 w-8 z-10 font-mono">
+                        <span>{Math.floor(max)}</span><span>{Math.floor(max / 2)}</span><span>0</span>
+                    </div>
+
+                    <div className="relative flex-1 h-full">
+                        <div className="absolute inset-0 pb-5 flex flex-col justify-between pointer-events-none z-0">
+                            <div className="w-full border-t border-dashed border-blue-900/40"></div>
+                            <div className="w-full border-t border-dashed border-blue-900/40"></div>
+                            <div className="w-full border-t border-dashed border-blue-900/40"></div>
+                        </div>
+
+                        <div className="absolute top-0 left-0 w-full h-[calc(100%-1.25rem)] flex justify-between gap-1.5 lg:gap-2 z-10 items-end">
+                            {data.map((val, i) => (
+                                <div key={i} className="flex-1 flex flex-col justify-end h-full relative group cursor-pointer" onMouseEnter={() => setHoverIndex(i)}>
+                                    <div className="w-full bg-blue-900/30 relative flex flex-col justify-end flex-1 rounded-t-sm">
+                                        <div className={`w-full bg-gradient-to-t ${colorFrom} ${colorTo} transition-all duration-1000 rounded-t-sm group-hover:opacity-80 group-hover:shadow-[0_0_10px_rgba(34,211,238,0.5)]`} style={{ height: `${(val / max) * 100}%` }}></div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="absolute bottom-0 left-0 w-full flex justify-between text-[9px] text-slate-500 z-0 font-mono">
+                            {xLabels.map((label, idx) => (
+                                <div key={idx} className="flex-1 flex justify-center whitespace-nowrap"><span className={`transition-colors ${hoverIndex === idx ? "text-cyan-400 font-bold" : ""}`}>{label}</span></div>
+                            ))}
+                        </div>
+
+                        {hoverIndex !== null && (
+                            <div className="absolute top-0 pointer-events-none bg-[#0a1530]/95 border border-blue-500/50 p-2 rounded shadow-[0_0_15px_rgba(0,0,0,0.5)] text-[10px] z-30 whitespace-nowrap backdrop-blur-sm transition-transform duration-100" style={{ left: `${(hoverIndex / data.length) * 100 + (50 / data.length)}%`, transform: `translate(${hoverIndex >= data.length / 2 ? '-115%' : '15%'}, 0)` }}>
+                                <div className="text-slate-400 mb-1 border-b border-blue-900/50 pb-1">{tt('chart.labelRealtime', { label: xLabels[hoverIndex] })}</div>
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span><span className="text-slate-300">{tt('chart.value')}</span></div>
+                                    <span className="font-mono text-cyan-50 font-bold">{data[hoverIndex].toFixed(1)}</span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const CircleProgress = ({ percentage, label, color = "#0ea5e9", size = 80 }) => {
+            const radius = 36;
+            const circumference = 2 * Math.PI * radius;
+            const strokeDashoffset = circumference - (percentage / 100) * circumference;
+
+            return (
+                <div className="relative flex flex-col items-center justify-center" style={{ width: size, height: size }}>
+                <svg className="transform -rotate-90 w-full h-full" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r={radius} stroke="rgba(14, 165, 233, 0.2)" strokeWidth="8" fill="none" />
+                    <circle cx="50" cy="50" r={radius} stroke={color} strokeWidth="8" fill="none" strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} className="transition-all duration-1000" />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-sm font-mono font-bold text-white"><AnimatedNumber value={percentage} isFloat={false} />%</span>
+                </div>
+                {label && <div className="absolute -bottom-5 text-[10px] text-cyan-400/80 whitespace-nowrap">{label}</div>}
+                </div>
+            );
+        };
+
+        // ==============================
+        // 单体电站主图 (全新 2D 源网荷储拓扑版)
+        // ==============================
+        const SolarStationDiagram = ({ station }) => {
+            const sourceTitle = sourceTitleFor(station?.type);
+            const stationName = station ? localizeStation(station).name : tt('type.distributed-pv');
+            return (
+                <div className="w-full h-full flex items-center justify-center relative bg-[#040812]">
+                    <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 px-3 py-1 rounded border border-cyan-500/30 bg-[#0a1530]/80 text-cyan-100 text-xs font-bold tracking-wider whitespace-nowrap">
+                        {stationName}
+                    </div>
+                    {/* SVG 拓扑画布，按比例缩放，填满可用空间 */}
+                    <svg viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet" className="w-full h-full drop-shadow-[0_0_15px_rgba(34,211,238,0.05)]">
+                        <defs>
+                            <linearGradient id="roofGrad" x1="0" y1="0" x2="1" y2="1">
+                                <stop offset="0%" stopColor="#0f172a" />
+                                <stop offset="100%" stopColor="#020617" />
+                            </linearGradient>
+                            <linearGradient id="panelGrad" x1="0" y1="0" x2="1" y2="1">
+                                <stop offset="0%" stopColor="#0284c7" />
+                                <stop offset="100%" stopColor="#0369a1" />
+                            </linearGradient>
+                            <linearGradient id="invGrad" x1="0" y1="0" x2="1" y2="1">
+                                <stop offset="0%" stopColor="#1e293b" />
+                                <stop offset="100%" stopColor="#0f172a" />
+                            </linearGradient>
+                            <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                                <feGaussianBlur stdDeviation="6" result="blur" />
+                                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                            </filter>
+                        </defs>
+
+                        {/* 基础物理导线 (暗底色) */}
+                        {/* 屋顶 -> 逆变器 */}
+                        <path d="M 470 300 L 580 300" fill="none" stroke="#1e293b" strokeWidth="8" />
+                        {/* 逆变器 -> 电网 */}
+                        <path d="M 700 300 L 760 300 L 760 130 L 830 130" fill="none" stroke="#1e293b" strokeWidth="8" strokeLinejoin="round" />
+                        {/* 逆变器 -> 储能 */}
+                        <path d="M 700 300 L 830 300" fill="none" stroke="#1e293b" strokeWidth="8" />
+                        {/* 逆变器 -> 厂区负荷 */}
+                        <path d="M 700 300 L 760 300 L 760 480 L 830 480" fill="none" stroke="#1e293b" strokeWidth="8" strokeLinejoin="round" />
+
+                        {/* 动态能量流动轨道 (使用 dashoffset 驱动) */}
+                        {/* 光伏阵列 (直流输出) -> 发电 */}
+                        <path d="M 470 300 L 580 300" fill="none" stroke="#10b981" strokeWidth="3" strokeDasharray="10 10">
+                            <animate attributeName="stroke-dashoffset" values="20;0" dur="0.8s" repeatCount="indefinite" />
+                        </path>
+                        
+                        {/* 逆变器 (交流并网) -> 电网 */}
+                        <path d="M 700 300 L 760 300 L 760 130 L 830 130" fill="none" stroke="#0ea5e9" strokeWidth="3" strokeDasharray="10 10" strokeLinejoin="round">
+                            <animate attributeName="stroke-dashoffset" values="20;0" dur="1s" repeatCount="indefinite" />
+                        </path>
+
+                        {/* 逆变器 (直流充放) -> 储能充电中 */}
+                        <path d="M 700 300 L 830 300" fill="none" stroke="#8b5cf6" strokeWidth="3" strokeDasharray="10 10">
+                            <animate attributeName="stroke-dashoffset" values="20;0" dur="1.2s" repeatCount="indefinite" />
+                        </path>
+
+                        {/* 逆变器 (交流消耗) -> 厂区负荷用电 */}
+                        <path d="M 700 300 L 760 300 L 760 480 L 830 480" fill="none" stroke="#f59e0b" strokeWidth="3" strokeDasharray="10 10" strokeLinejoin="round">
+                            <animate attributeName="stroke-dashoffset" values="20;0" dur="0.6s" repeatCount="indefinite" />
+                        </path>
+
+                        {/* 节点 1：大面积屋顶光伏俯视图 */}
+                        <g filter="url(#glow)">
+                            <rect x="50" y="40" width="420" height="520" rx="12" fill="url(#roofGrad)" stroke="#334155" strokeWidth="3" />
+                            {/* 阵列排布逻辑，刻意留出真实的设施空隙 */}
+                            <g transform="translate(65, 55)">
+                                {Array.from({length: 12}).map((_, r) => 
+                                    Array.from({length: 10}).map((_, c) => {
+                                        // 模拟屋顶天窗与通风设备留白区域
+                                        if ((r >= 4 && r <= 7) && (c >= 4 && c <= 6)) return null; 
+                                        return (
+                                            <rect key={`${r}-${c}`} x={c * 39} y={r * 41} width="35" height="37" rx="2" fill="url(#panelGrad)" stroke="#38bdf8" strokeWidth="0.8" strokeOpacity="0.4" />
+                                        )
+                                    })
+                                )}
+                                {/* 模拟屋顶机房/HVAC设备 */}
+                                <rect x="156" y="164" width="117" height="164" rx="4" fill="#1e293b" stroke="#475569" strokeWidth="2" />
+                                <circle cx="214" cy="200" r="22" fill="#0f172a" stroke="#334155" strokeWidth="2" />
+                                <circle cx="214" cy="285" r="22" fill="#0f172a" stroke="#334155" strokeWidth="2" />
+                            </g>
+                        </g>
+                        <text x="260" y="24" fill="#94a3b8" fontSize="16" fontWeight="bold" textAnchor="middle" letterSpacing="4">{sourceTitle}</text>
+                        <text x="260" y="585" fill="#10b981" fontSize="16" fontFamily="monospace" fontWeight="bold" textAnchor="middle">{tt('diagram.realtimeOut')}</text>
+
+                        {/* 节点 2：逆变/EMS 枢纽中心 */}
+                        <g filter="url(#glow)">
+                            <rect x="580" y="240" width="120" height="120" rx="12" fill="url(#invGrad)" stroke="#0ea5e9" strokeWidth="2" />
+                            <rect x="595" y="255" width="90" height="35" rx="4" fill="#020617" stroke="#38bdf8" strokeWidth="1" strokeOpacity="0.5" />
+                            <text x="640" y="278" fill="#38bdf8" fontSize="14" fontWeight="bold" textAnchor="middle">{tt('diagram.invCenter')}</text>
+                            <text x="640" y="325" fill="#64748b" fontSize="12" fontWeight="bold" textAnchor="middle">{tt('diagram.dcac')}</text>
+                            <text x="640" y="345" fill="#34d399" fontSize="12" textAnchor="middle">{tt('diagram.ems')}</text>
+                        </g>
+
+                        {/* 节点 3：大电网交互 */}
+                        <g filter="url(#glow)">
+                            <circle cx="880" cy="130" r="50" fill="#0f172a" stroke="#3b82f6" strokeWidth="3" strokeDasharray="8 4" />
+                            <circle cx="880" cy="130" r="38" fill="#1e293b" />
+                            {/* 电塔简化图标 */}
+                            <path d="M 868 105 L 892 105 M 880 105 L 880 135 M 860 155 L 880 135 L 900 155" fill="none" stroke="#93c5fd" strokeWidth="2" />
+                            <text x="880" y="65" fill="#93c5fd" fontSize="16" fontWeight="bold" textAnchor="middle">{tt('diagram.grid')}</text>
+                            <text x="880" y="205" fill="#0ea5e9" fontSize="14" fontFamily="monospace" fontWeight="bold" textAnchor="middle">{tt('diagram.gridFlow')}</text>
+                        </g>
+
+                        {/* 节点 4：储能系统 */}
+                        <g filter="url(#glow)">
+                            <rect x="830" y="250" width="100" height="100" rx="8" fill="#0f172a" stroke="#8b5cf6" strokeWidth="3" />
+                            {/* 电池容量指示器 */}
+                            <rect x="850" y="270" width="60" height="30" rx="4" fill="#1e293b" stroke="#c4b5fd" strokeWidth="2" />
+                            <rect x="910" y="280" width="4" height="10" rx="1" fill="#c4b5fd" />
+                            <rect x="853" y="273" width="43" height="24" rx="2" fill="#a855f7" /> {/* 约 72% 填充 */}
+                            <text x="880" y="325" fill="#c4b5fd" fontSize="14" fontWeight="bold" textAnchor="middle">{tt('diagram.storage')}</text>
+                            <text x="880" y="342" fill="#d8b4fe" fontSize="12" fontFamily="monospace" textAnchor="middle">SOC: 72%</text>
+                        </g>
+
+                        {/* 节点 5：本地负荷 */}
+                        <g filter="url(#glow)">
+                            {/* 工厂建筑图标化 */}
+                            <path d="M 830 520 L 830 460 L 860 430 L 890 460 L 920 430 L 950 460 L 950 520 Z" fill="#0f172a" stroke="#f59e0b" strokeWidth="3" strokeLinejoin="round" />
+                            <rect x="850" y="480" width="15" height="40" fill="#1e293b" />
+                            <rect x="895" y="480" width="15" height="40" fill="#1e293b" />
+                            <text x="890" y="550" fill="#fcd34d" fontSize="16" fontWeight="bold" textAnchor="middle">{tt('diagram.load')}</text>
+                            <text x="890" y="570" fill="#f59e0b" fontSize="15" fontFamily="monospace" fontWeight="bold" textAnchor="middle">{tt('diagram.loadPower')}</text>
+                        </g>
+
+                        {/* 强化光晕粒子，与虚线流动同频以增强视觉厚度 */}
+                        <circle cx="0" cy="0" r="4" fill="#10b981" filter="url(#glow)">
+                            <animateMotion path="M 470 300 L 580 300" dur="0.8s" repeatCount="indefinite" />
+                        </circle>
+                        <circle cx="0" cy="0" r="4" fill="#0ea5e9" filter="url(#glow)">
+                            <animateMotion path="M 700 300 L 760 300 L 760 130 L 830 130" dur="1s" repeatCount="indefinite" />
+                        </circle>
+                        <circle cx="0" cy="0" r="4" fill="#8b5cf6" filter="url(#glow)">
+                            <animateMotion path="M 700 300 L 830 300" dur="1.2s" repeatCount="indefinite" />
+                        </circle>
+                        <circle cx="0" cy="0" r="4" fill="#fcd34d" filter="url(#glow)">
+                            <animateMotion path="M 700 300 L 760 300 L 760 480 L 830 480" dur="0.6s" repeatCount="indefinite" />
+                        </circle>
+                    </svg>
+                </div>
+            );
+        };
+        // ==============================
+        // 视图 1：单体电站管理智能体
+        // ==============================
+        const SingleStationView = ({ selectedStationId, onSelectStation }) => {
+            const selectedStation = localizeStation(STATION_CATALOG.find(s => s.id === selectedStationId) || STATION_CATALOG[0]);
+            // 图表数据 (修正了盲目动态抖动的历史/固定基线数据)
+            const lineDataPwr1 = [60,72,85,91,88,95,102,98,95,88,79,72];
+            const lineDataPwr2 = [55,68,80,88,85,92,98,94,91,84,76,68];
+            const lineDataEnv1 = [0,120,480,750,820,810,760,630,390,150,20,0]; // 辐照度
+            const lineDataEnv2 = [22,24,32,41,45,46,44,40,35,28,24,22];       // 温度
+            const barDataInv = useDynamicData([96.2,97.8,95.1,98.3,96.7,97.2,94.8,98.1], 1.5);
+            const barDataIncome = [28500,31200,35800,42100,48600,52300,49800,44200];
+            const lineDataNet1 = [820,910,880,950,920,870,840];
+            const lineDataNet2 = [180,210,195,230,215,195,175];
+
+            // 顶部与圆形指标数据
+            const [topStats, setTopStats] = useState([
+                { id: 'today', labelKey: 'single.metric.today', value: 12486.5, unit: 'kWh', isFloat: true },
+                { id: 'power', labelKey: 'single.metric.power', value: 1248.3, unit: 'kW', isFloat: true },
+                { id: 'cap', labelKey: 'single.metric.cap', value: 2000, unit: 'kWp', isFloat: false },
+                { id: 'pr', labelKey: 'single.metric.pr', value: 82.6, unit: '%', isFloat: true },
+                { id: 'total', labelKey: 'single.metric.total', value: 8562, unit: 'MWh', isFloat: false },
+                { id: 'hours', labelKey: 'single.metric.hours', value: 4281, unit: 'h', isFloat: false }
+            ]);
+            
+            const [subStats, setSubStats] = useState([
+                { id: 'avail', labelKey: 'single.metric.avail', value: 99.2, unit: '%', isFloat: true },
+                { id: 'month', labelKey: 'single.metric.month', value: 38520, unit: 'kWh', isFloat: false },
+                { id: 'year', labelKey: 'single.metric.year', value: 312, unit: 'MWh', isFloat: false },
+                { id: 'export', labelKey: 'single.metric.export', value: 9856, unit: 'kWh', isFloat: false },
+                { id: 'self', labelKey: 'single.metric.self', value: 2630, unit: 'kWh', isFloat: false }
+            ]);
+
+            const [healthStats, setHealthStats] = useState([
+                { id: 'inv', labelKey: 'single.health.inv', value: 95, color: '#0ea5e9' },
+                { id: 'combiner', labelKey: 'single.health.combiner', value: 88, color: '#10b981' },
+                { id: 'weather', labelKey: 'single.health.weather', value: 100, color: '#f59e0b' },
+                { id: 'storage', labelKey: 'single.health.storage', value: 72, color: '#8b5cf6' }
+            ]);
+
+            useEffect(() => {
+                const timer = setInterval(() => {
+                    setTopStats(prev => prev.map(s => {
+                        if(s.id === 'cap') return s;
+                        return { ...s, value: Math.max(0, s.value + (s.isFloat ? (Math.random() * 1.5 - 0.75) : Math.floor(Math.random() * 5 - 2))) };
+                    }));
+                    setSubStats(prev => prev.map(s => ({ 
+                        ...s, value: Math.max(0, s.value + (s.isFloat ? (Math.random() * 0.4 - 0.2) : Math.floor(Math.random() * 3 - 1))) 
+                    })));
+                    setHealthStats(prev => prev.map(s => ({
+                        ...s, value: Math.max(60, Math.min(100, s.value + Math.floor(Math.random() * 3 - 1)))
+                    })));
+                }, 2500);
+                return () => clearInterval(timer);
+            }, []);
+
+            const stringData = Array.from({ length: 10 }).map((_, i) => ({
+                id: `STR-A${String(i+1).padStart(2, '0')}`,
+                inv: `INV${(i%4)+1}`,
+                current: (8.2 + Math.random()*1.4).toFixed(1),
+                voltage: (580 + Math.random()*40).toFixed(0),
+                power: (4700 + Math.random()*1100).toFixed(0),
+                statusKey: i < 8 ? 'single.status.ok' : 'single.status.warn'
+            }));
+
+            return (
+                <div className="flex-1 grid grid-cols-12 gap-4 h-full animate-fade-in min-h-0">
+                    <div className="col-span-3 flex flex-col gap-4">
+                        <TechCard title={tt('single.card.power')} className="flex-1 min-h-0">
+                            <div className="flex justify-end gap-2 text-[10px] text-slate-400 mb-2">
+                                <span className="flex items-center gap-1"><span className="w-2 h-2 bg-[#0ea5e9] rounded-full"></span>{tt('single.legend.powerLive')}</span>
+                                <span className="flex items-center gap-1"><span className="w-2 h-2 bg-[#f97316] rounded-full"></span>{tt('single.legend.powerPred')}</span>
+                            </div>
+                            <div className="flex-1 mt-2"><MiniLineChart data1={lineDataPwr1} data2={lineDataPwr2} color1="#0ea5e9" color2="#f97316" xLabels={['00:00','06:00','12:00','18:00','24:00']} /></div>
+                        </TechCard>
+                        
+                        <TechCard title={tt('single.card.env')} className="flex-1 min-h-0">
+                            <div className="flex justify-end gap-2 text-[10px] text-slate-400 mb-2">
+                                <span className="flex items-center gap-1"><span className="w-2 h-2 bg-yellow-500 rounded-full"></span>{tt('single.legend.irr')}</span>
+                                <span className="flex items-center gap-1"><span className="w-2 h-2 bg-rose-500 rounded-full"></span>{tt('single.legend.temp')}</span>
+                            </div>
+                            <div className="flex-1 mt-2"><MiniLineChart data1={lineDataEnv1} data2={lineDataEnv2} dualAxis={true} color1="#eab308" color2="#f43f5e" xLabels={['00:00','06:00','12:00','18:00','24:00']} /></div>
+                        </TechCard>
+
+                        <TechCard title={tt('single.card.inv')} className="flex-1 min-h-0">
+                            <div className="flex justify-end gap-2 text-[10px] text-slate-400 mb-2">
+                                <span className="flex items-center gap-1"><span className="w-2 h-2 bg-cyan-400 rounded-full"></span>{tt('single.legend.eff')}</span>
+                            </div>
+                            <div className="flex-1 mt-2"><MiniBarChart data={barDataInv} yMax={100} xLabels={['INV1','INV2','INV3','INV4','INV5','INV6','INV7','INV8']} colorFrom="from-cyan-600" colorTo="to-cyan-300" /></div>
+                        </TechCard>
+                    </div>
+
+                    <div className="col-span-6 flex flex-col gap-4">
+                        <div className="flex flex-wrap gap-1.5 shrink-0">
+                            {STATION_CATALOG.map((st) => {
+                                const loc = localizeStation(st);
+                                const chip =
+                                    (window.PagesI18n && PagesI18n.getLang() === 'en')
+                                        ? (loc.city + ' · ' + loc.typeLabel)
+                                        : loc.name;
+                                return (
+                                <button
+                                    key={st.id}
+                                    onClick={() => onSelectStation(st.id)}
+                                    className={`px-2.5 py-1 rounded text-[11px] border transition-colors ${selectedStation.id === st.id ? 'bg-cyan-600/80 border-cyan-400 text-white' : 'bg-[#07132b]/80 border-blue-800/50 text-slate-400 hover:text-cyan-200 hover:border-cyan-500/40'}`}
+                                >
+                                    {chip}
+                                </button>
+                                );
+                            })}
+                        </div>
+                        <div className="flex flex-col gap-2 shrink-0">
+                            <div className="grid grid-cols-6 gap-2">
+                                {topStats.map((s) => (
+                                <div key={s.id} className="bg-gradient-to-b from-blue-900/40 to-transparent border-t-2 border-cyan-400/80 rounded flex flex-col items-center py-2 relative overflow-hidden group">
+                                    <div className="text-[11px] text-slate-300">{tt(s.labelKey)}</div>
+                                    <div className="text-lg font-mono font-bold text-cyan-300 mt-1 transition-all duration-300">
+                                    <AnimatedNumber value={s.value} isFloat={s.isFloat} /> <span className="text-[10px] text-cyan-600 ml-0.5">{s.unit}</span>
+                                    </div>
+                                    <div className="absolute bottom-0 w-full h-1 bg-cyan-400/20 transform translate-y-full group-hover:translate-y-0 transition-transform"></div>
+                                </div>
+                                ))}
+                            </div>
+                            <div className="grid grid-cols-5 gap-2 mt-2">
+                                {subStats.map((s) => (
+                                <div key={s.id} className="flex flex-col items-center justify-center bg-[#07132b]/80 border border-blue-800/50 py-1.5 rounded-full">
+                                    <div className="text-sm font-mono text-white font-bold transition-all duration-300">
+                                        <AnimatedNumber value={s.value} isFloat={s.isFloat} /><span className="text-[10px] text-cyan-600 ml-0.5">{s.unit}</span>
+                                    </div>
+                                    <div className="text-[10px] text-slate-400">{tt(s.labelKey)}</div>
+                                </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="flex-[5] min-h-0 relative overflow-hidden border border-blue-500/20 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-900/20 via-[#060d1f] to-[#060d1f]">
+                            <SolarStationDiagram station={selectedStation} />
+                        </div>
+
+                        <TechCard title={tt('single.card.string')} className="flex-[3] min-h-0">
+                            <div className="grid grid-cols-6 text-[10px] text-cyan-500 bg-blue-950/40 py-1.5 px-2 mb-1">
+                                <div>{tt('single.col.stringId')}</div><div className="text-center">{tt('single.col.inv')}</div><div className="text-center">{tt('single.col.current')}</div>
+                                <div className="text-center">{tt('single.col.voltage')}</div><div className="text-center">{tt('single.col.power')}</div><div className="text-right">{tt('single.col.status')}</div>
+                            </div>
+                            <div className="flex-1 overflow-hidden relative" style={{ maskImage: 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)' }}>
+                                <div className="absolute w-full animate-scroll-up">
+                                {[...stringData, ...stringData].map((row, i) => (
+                                    <div key={i} className="grid grid-cols-6 text-xs text-slate-300 py-2 border-b border-blue-900/30 hover:bg-blue-900/20 px-2 transition-colors">
+                                        <div className="font-mono text-cyan-200">{row.id}</div>
+                                        <div className="text-center font-mono">{row.inv}</div>
+                                        <div className="text-center font-mono text-cyan-300">{row.current}</div>
+                                        <div className="text-center font-mono text-blue-300">{row.voltage}</div>
+                                        <div className="text-center font-mono text-yellow-300">{row.power}</div>
+                                        <div className={`text-right font-bold ${row.statusKey === 'single.status.ok' ? 'text-green-400' : 'text-red-400 animate-pulse'}`}>{tt(row.statusKey)}</div>
+                                    </div>
+                                ))}
+                                </div>
+                            </div>
+                        </TechCard>
+                    </div>
+
+                    <div className="col-span-3 flex flex-col gap-4">
+                        <TechCard title={tt('single.card.income')} className="flex-1 min-h-0">
+                            <div className="flex justify-end gap-2 text-[10px] text-slate-400 mb-2">
+                                <span className="flex items-center gap-1"><span className="w-2 h-2 bg-yellow-400 rounded-full"></span>{tt('single.legend.income')}</span>
+                            </div>
+                            <div className="flex-1 mt-2"><MiniBarChart data={barDataIncome} xLabels={[1,2,3,4,5,6,7,8].map(i => tt('month.'+i))} colorFrom="from-yellow-600" colorTo="to-yellow-300" /></div>
+                        </TechCard>
+                        
+                        <TechCard title={tt('single.card.health')} className="flex-1 min-h-0">
+                            <div className="grid grid-cols-2 gap-2 pt-2 h-full">
+                                {healthStats.map((item) => (
+                                    <div key={item.id} className="flex flex-col items-center justify-center">
+                                        <CircleProgress percentage={item.value} label={tt(item.labelKey)} color={item.color} size={62} />
+                                    </div>
+                                ))}
+                            </div>
+                        </TechCard>
+                        
+                        <TechCard title={tt('single.card.grid')} className="flex-1 min-h-0">
+                            <div className="flex justify-end gap-2 text-[10px] text-slate-400 mb-2">
+                                <span className="flex items-center gap-1"><span className="w-2 h-2 bg-[#10b981] rounded-full"></span>{tt('single.legend.export')}</span>
+                                <span className="flex items-center gap-1"><span className="w-2 h-2 bg-[#a855f7] rounded-full"></span>{tt('single.legend.self')}</span>
+                            </div>
+                            <div className="flex-1 mt-2"><MiniLineChart data1={lineDataNet1} data2={lineDataNet2} color1="#10b981" color2="#a855f7" xLabels={['mon','tue','wed','thu','fri','sat','sun'].map(d => tt('week.'+d))} dualAxis={true} /></div>
+                        </TechCard>
+                    </div>
+                </div>
+            );
+        };
+
+
+        const STATION_STORAGE_KEY = 'ps-selected-station';
+        function getSelectedStationId() {
+            try {
+                const id = sessionStorage.getItem(STATION_STORAGE_KEY);
+                if (id && STATION_CATALOG.some(s => s.id === id)) return id;
+            } catch (e) {}
+            return STATION_CATALOG[0].id;
+        }
+        function setSelectedStationId(id) {
+            try { sessionStorage.setItem(STATION_STORAGE_KEY, id); } catch (e) {}
+        }
+        function navClass(active, variant) {
+            if (active) {
+                if (variant === 'compute') {
+                    return 'px-4 py-1.5 text-sm rounded transition-all font-bold bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-[0_0_10px_rgba(59,130,246,0.5)]';
+                }
+                return 'px-4 py-1.5 text-sm rounded transition-all font-bold bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-[0_0_10px_rgba(6,182,212,0.5)]';
+            }
+            if (variant === 'compute') {
+                return 'px-4 py-1.5 text-sm rounded transition-all font-bold text-slate-400 hover:text-blue-300 hover:bg-blue-900/30';
+            }
+            return 'px-4 py-1.5 text-sm rounded transition-all font-bold text-slate-400 hover:text-cyan-300 hover:bg-blue-900/30';
+        }
+        // Isolated so the 1s tick does not re-render AppShell and wipe #static-i18n-switcher
+        function HeaderClock() {
+            const [time, setTime] = useState(new Date());
+            useEffect(() => {
+                const timer = setInterval(() => setTime(new Date()), 1000);
+                return () => clearInterval(timer);
+            }, []);
+            const y = time.getFullYear();
+            const m = String(time.getMonth() + 1).padStart(2, '0');
+            const d = String(time.getDate()).padStart(2, '0');
+            const h = String(time.getHours()).padStart(2, '0');
+            const min = String(time.getMinutes()).padStart(2, '0');
+            const s = String(time.getSeconds()).padStart(2, '0');
+            return (
+                <div className="flex items-center gap-2 text-cyan-300 font-mono bg-blue-950/30 px-3 py-1 rounded border border-blue-900/50">
+                    <Clock className="w-4 h-4" />{`${y}-${m}-${d} ${h}:${min}:${s}`}
+                </div>
+            );
+        }
+        function AppShell({ activeView, children }) {
+            const [lang, setLang] = useState(() => (window.PagesI18n ? PagesI18n.getLang() : 'zh'));
+            useEffect(() => {
+                const onChange = (e) => {
+                    if (e.detail && e.detail.lang) setLang(e.detail.lang);
+                };
+                window.addEventListener('static-i18n:change', onChange);
+                if (window.PagesI18n && PagesI18n.remountSwitcher) {
+                    PagesI18n.remountSwitcher();
+                }
+                return () => window.removeEventListener('static-i18n:change', onChange);
+            }, []);
+            // React clears unmanaged DOM children under this host on commit — repaint after each shell render
+            React.useLayoutEffect(() => {
+                if (window.PagesI18n && PagesI18n.remountSwitcher) {
+                    PagesI18n.remountSwitcher();
+                }
+            });
+            const langQ = '?lang=' + lang;
+            // Do NOT key={lang} on the shell — remounting destroys the switcher mid-click
+            return (
+                <div className="min-h-screen flex flex-col">
+                    <header className="h-16 flex items-center justify-between px-6 border-b border-blue-900/50 bg-[#060d1f] relative z-20">
+                        <div className="flex items-center gap-8">
+                        <div className="flex items-center gap-2 text-cyan-400">
+                            <Globe className="w-6 h-6 animate-pulse" />
+                            <h1 className="text-xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-500">{tt('brand.title')}</h1>
+                        </div>
+                        <nav className="flex gap-2 bg-[#050b14] p-1 rounded-lg border border-blue-900/50">
+                            <a href={'single.html' + langQ} className={navClass(activeView === 'single')}>{tt('nav.single')}</a>
+                            <a href={'cluster.html' + langQ} className={navClass(activeView === 'power')}>{tt('nav.cluster')}</a>
+                            <a href={'compute.html' + langQ} className={navClass(activeView === 'compute', 'compute')}>{tt('nav.compute')}</a>
+                        </nav>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm">
+                        <div id="static-i18n-switcher"></div>
+                        <HeaderClock />
+                        </div>
+                    </header>
+                    <main key={lang} className="flex-1 p-3 overflow-hidden relative flex flex-col h-[calc(100vh-4rem)]">
+                        {children}
+                    </main>
+                </div>
+            );
+        }
+
+        function App() {
+            const [selectedStationId, setSelected] = useState(getSelectedStationId());
+            const onSelectStation = (id) => {
+                setSelectedStationId(id);
+                setSelected(id);
+            };
+            return (
+                <AppShell activeView="single">
+                    <SingleStationView selectedStationId={selectedStationId} onSelectStation={onSelectStation} />
+                </AppShell>
+            );
+        }
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+
+    </script>
+</body>
+</html>

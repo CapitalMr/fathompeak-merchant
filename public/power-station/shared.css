@@ -1,0 +1,186 @@
+/* 商家后台副本：纸色浅色主题，与沐仞控制台一致。仅中英双语。 */
+html,
+body,
+#root {
+  margin: 0;
+  background: #f8f8f8;
+  color: #212021;
+  overflow: hidden;
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes scrollUp {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-50%);
+  }
+}
+
+.animate-scroll-up {
+  animation: scrollUp 15s linear infinite;
+}
+
+.animate-scroll-up:hover {
+  animation-play-state: paused;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.glass-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.glass-scroll::-webkit-scrollbar-track {
+  background: #f3f1ea;
+}
+
+.glass-scroll::-webkit-scrollbar-thumb {
+  background: rgba(47, 99, 184, 0.45);
+  border-radius: 4px;
+}
+
+/* 深色任意值底板 → 白 / 纸色 */
+[class*='bg-[#050b14]'],
+[class*='bg-[#060d1f]'],
+[class*='bg-[#040812]'],
+[class*='bg-[#0a1530]'],
+[class*='bg-[#07132b]'] {
+  background-color: #ffffff !important;
+}
+
+header[class*='bg-[#060d1f]'] {
+  background-color: #f8f8f8 !important;
+  border-bottom-color: rgba(61, 49, 79, 0.14) !important;
+}
+
+[class*='via-[#060d1f]'] {
+  background-image: radial-gradient(
+    ellipse at center,
+    rgba(47, 99, 184, 0.12),
+    #f8f8f8 70%
+  ) !important;
+}
+
+/* Tailwind 命名深色底（含 /30 /60 /80 等透明度）一律提亮，避免深字叠深底 */
+[class*='bg-blue-950'],
+[class*='bg-blue-900'],
+[class*='bg-slate-950'],
+[class*='bg-slate-900'],
+[class*='bg-indigo-950'],
+[class*='bg-indigo-900'] {
+  background-color: #eef3fb !important;
+}
+
+[class*='from-blue-900'],
+[class*='from-blue-950'],
+[class*='from-slate-900'] {
+  --tw-gradient-from: rgba(47, 99, 184, 0.08) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgba(238, 243, 251, 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+/* 告警 / 成功半透明深色条 */
+[class*='bg-red-950'],
+[class*='bg-red-900'],
+[class*='bg-rose-950'],
+[class*='bg-rose-900'] {
+  background-color: #fdecec !important;
+}
+
+[class*='bg-green-950'],
+[class*='bg-green-900'],
+[class*='bg-emerald-950'],
+[class*='bg-emerald-900'] {
+  background-color: #e8f6ee !important;
+}
+
+[class*='bg-amber-950'],
+[class*='bg-amber-900'],
+[class*='bg-yellow-950'],
+[class*='bg-yellow-900'] {
+  background-color: #f8f1e4 !important;
+}
+
+[class*='border-blue-9'],
+[class*='border-blue-8'],
+[class*='border-blue-5'] {
+  border-color: rgba(61, 49, 79, 0.14) !important;
+}
+
+/* 原深色主题上的浅色字 → 墨色 / 晨蓝 */
+.text-white,
+.text-cyan-50,
+.text-cyan-100,
+.text-cyan-200,
+.text-slate-100,
+.text-slate-200,
+.text-slate-300,
+[class*='text-cyan-50'],
+[class*='text-cyan-100'],
+[class*='text-cyan-200'] {
+  color: #212021 !important;
+}
+
+.text-slate-400,
+.text-slate-500,
+.text-cyan-600 {
+  color: rgba(0, 0, 0, 0.55) !important;
+}
+
+.text-cyan-300,
+.text-cyan-400,
+.text-cyan-500,
+.text-blue-300,
+.text-blue-400,
+.text-teal-300,
+.text-teal-400,
+.text-indigo-300,
+.text-indigo-400 {
+  color: #2f63b8 !important;
+}
+
+/* 渐变激活胶囊、选中标签保持白字 */
+[class*='from-cyan-600'].text-white,
+[class*='from-blue-600'].text-white,
+[class*='to-indigo-600'].text-white,
+a[class*='from-cyan-600'],
+a[class*='from-blue-600'],
+button[class*='from-cyan-600'],
+button[class*='from-blue-600'],
+.bg-cyan-600\/80.text-white,
+[class*='bg-cyan-600'].text-white {
+  color: #ffffff !important;
+}
+
+header h1 {
+  color: #212021 !important;
+  background: none !important;
+  -webkit-text-fill-color: #212021 !important;
+}
+
+/* 六边形节点角标等小标签：保证字色可读 */
+[class*='bg-blue-950'][class*='text-[9px]'],
+[class*='bg-blue-950'][class*='text-[10px]'],
+[class*='bg-blue-950'][class*='text-xs'] {
+  color: #212021 !important;
+}

@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" viewBox="57.68 -209.66 683.64 683.64" width="64" height="64">
+<title>FathomPeak 沐仞科技</title>
+<defs>
+    <linearGradient id="left-face" gradientUnits="userSpaceOnUse" x1="126" y1="64" x2="240" y2="207">
+      <stop offset="0" stop-color="#777777" />
+      <stop offset="0.22" stop-color="#404040" />
+      <stop offset="0.43" stop-color="#111111" />
+      <stop offset="0.62" stop-color="#707070" />
+      <stop offset="0.91" stop-color="#a4a4a4" />
+      <stop offset="1" stop-color="#cbcbcb" />
+    </linearGradient>
+    <linearGradient id="peak-face" gradientUnits="userSpaceOnUse" x1="294" y1="29" x2="438" y2="175">
+      <stop offset="0" stop-color="#f8f8f8" />
+      <stop offset="0.3" stop-color="#dfdfdf" />
+      <stop offset="0.64" stop-color="#a1a1a1" />
+      <stop offset="0.9" stop-color="#555555" />
+      <stop offset="1" stop-color="#252525" />
+    </linearGradient>
+    <linearGradient id="valley-face" gradientUnits="userSpaceOnUse" x1="491" y1="112" x2="485" y2="174">
+      <stop offset="0" stop-color="#e7e7e7" />
+      <stop offset="0.54" stop-color="#d0d0d0" />
+      <stop offset="0.81" stop-color="#a0a0a0" />
+      <stop offset="1" stop-color="#575757" />
+    </linearGradient>
+    <linearGradient id="front-face" gradientUnits="userSpaceOnUse" x1="269" y1="120" x2="512" y2="226">
+      <stop offset="0" stop-color="#0a0a0a" />
+      <stop offset="0.16" stop-color="#525252" />
+      <stop offset="0.36" stop-color="#a0a0a0" />
+      <stop offset="0.65" stop-color="#d3d3d3" />
+      <stop offset="0.84" stop-color="#f1f1f1" />
+      <stop offset="1" stop-color="#fafafa" />
+    </linearGradient>
+    <linearGradient id="right-face" gradientUnits="userSpaceOnUse" x1="526" y1="134" x2="556" y2="188">
+      <stop offset="0" stop-color="#8c8c8c" />
+      <stop offset="0.26" stop-color="#b1b1b1" />
+      <stop offset="0.53" stop-color="#676767" />
+      <stop offset="0.8" stop-color="#181818" />
+      <stop offset="1" stop-color="#050505" />
+    </linearGradient>
+  </defs>
+<g id="峰面图形" inkscape:label="峰面图形" transform="translate(80 20) scale(1)">
+    <g id="01_后侧谷面" inkscape:label="01_后侧谷面">
+      <path d="M 411,108 C 452,131 493,158 555,123 C 528,145 494,166 472,172 C 445,181 428,145 411,108 Z" fill="url(#valley-face)" />
+    </g>
+    <g id="02_左侧暗面" inkscape:label="02_左侧暗面">
+      <path d="M 3,200 C 89,169 176,90 258,39 C 282,24 302,11 318,7 C 301,13 293,46 277,77 C 253,128 233,156 205,168 C 179,180 161,165 133,169 C 94,167 42,189 3,200 Z" fill="url(#left-face)" />
+    </g>
+    <g id="03_主峰亮面" inkscape:label="03_主峰亮面">
+      <path d="M 318,7 C 348,-6 379,51 412,106 C 433,143 443,162 455,171 C 430,160 411,148 388,136 C 340,111 280,101 235,136 C 225,145 215,160 205,168 C 233,156 253,128 277,77 C 293,46 301,13 318,7 Z" fill="url(#peak-face)" />
+    </g>
+    <g id="04_右侧折返" inkscape:label="04_右侧折返">
+      <path d="M 430,219 C 474,213 511,164 548,129 C 572,108 600,110 636,116 C 586,128 541,156 500,184 C 470,204 448,221 430,219 Z" fill="url(#right-face)" />
+    </g>
+    <g id="05_前侧流面" inkscape:label="05_前侧流面">
+      <path d="M 235,136 C 280,101 340,111 388,136 C 419,153 444,177 466,172 C 500,169 526,142 552,126 C 512,160 474,215 430,219 C 405,221 383,208 360,184 C 320,142 291,109 254,127 C 246,130 240,133 235,136 Z" fill="url(#front-face)" />
+    </g>
+    <g id="06_峰面交界高光" inkscape:label="06_峰面交界高光">
+      <path d="M 235,136 C 280,101 340,111 388,136 C 419,153 444,177 466,172" fill="none" stroke="#ffffff" stroke-width=".75" stroke-opacity=".78" stroke-linecap="round" />
+    </g>
+  </g>
+</svg>
